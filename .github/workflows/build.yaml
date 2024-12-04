@@ -48,10 +48,6 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - os_name: Linux-aarch64
-            os: ubuntu-20.04
-            target: aarch64-unknown-linux-musl
-            bin: angelsuite-installer-linux-arm64
           - os_name: Linux-x86_64
             os: ubuntu-20.04
             target: x86_64-unknown-linux-gnu
@@ -64,10 +60,6 @@ jobs:
             os: macOS-latest
             target: x86_64-apple-darwin
             bin: angelsuite-installer-darwin-amd64
-          - os_name: macOS-aarch64
-            os: macOS-latest
-            target: aarch64-apple-darwin
-            bin: angelsuite-installer-darwin-arm64
         toolchain:
           - stable
     steps:
@@ -76,26 +68,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Build binary
-        uses: houseabsolute/actions-rust-cross@v0
-        with:
-          command: "tauri build"
-          target: ${{ matrix.platform.target }}
-          toolchain: ${{ matrix.toolchain }}
-          args: ${{ env.CARGO_EXTRA_BUILD_PARAMS }}
-          strip: true
+        run: cargo tauri build
       - name: Rename binary (linux and macos)
-        run: mv target/${{ matrix.platform.target }}/release/${{ env.EXECUTABLE_NAME }} target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
+        run: |
+          mv target/release/${{ env.EXECUTABLE_NAME }} target/release/${{ matrix.platform.bin }}
+          strip target/release/${{ matrix.platform.bin }}
         if: matrix.platform.os_name != 'Windows-x86_64'
-      - name: Rename binary (windows)
-        run: mv target/${{ matrix.platform.target }}/release/${{ env.EXECUTABLE_NAME }}.exe target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
+      - name: Rename binary bundle (windows)
+        run: mv target/release/${{ env.EXECUTABLE_NAME }}.exe target/release/${{ matrix.platform.bin }}
         if: matrix.platform.os_name == 'Windows-x86_64'
       - name: Generate SHA-256
-        run: shasum -a 256 target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} | cut -d ' ' -f 1 > target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}.sha256
+        run: shasum -a 256 target/release/${{ matrix.platform.bin }} | cut -d ' ' -f 1 > target/release/${{ matrix.platform.bin }}.sha256
       - name: Release binary and SHA-256 checksum to GitHub
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.create-release.outputs.CARGO_PKG_VERSION }}
           prerelease: ${{ needs.create-release.outputs.CARGO_PKG_PRERELEASE }}
           files: |
-            target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
-            target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}.sha256
+            target/release/${{ matrix.platform.bin }}
+            target/release/${{ matrix.platform.bin }}.sha256
