@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "angelsuite-installer",
+        "title": "AngelSuite Installer",
         "width": 800,
         "height": 600
       }
