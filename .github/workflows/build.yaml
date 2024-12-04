@@ -44,10 +44,19 @@ jobs:
       - name: install trunk
         run: cargo binstall trunk
 
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: 'yarn'
+
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
+
+      - name: install dependencies
+        run: yarn install
 
       - uses: tauri-apps/tauri-action@v0
         env:
