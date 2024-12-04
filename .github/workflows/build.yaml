@@ -72,7 +72,7 @@ jobs:
           - stable
     steps:
       - name: Install tauri
-        run: cargo install --locked cargo-tauri
+        run: cargo install create-tauri-app --locked
       - name: Checkout
         uses: actions/checkout@v3
       - name: Build binary
