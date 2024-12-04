@@ -63,12 +63,12 @@ jobs:
         toolchain:
           - stable
     steps:
-      - name: Install tauri
-        run: cargo install create-tauri-app --locked
       - name: Checkout
         uses: actions/checkout@v3
       - name: Build binary
-        run: cargo tauri build
+        run: |
+          cargo install create-tauri-app --locked
+          cargo tauri build
       - name: Rename binary (linux and macos)
         run: |
           mv target/release/${{ env.EXECUTABLE_NAME }} target/release/${{ matrix.platform.bin }}
