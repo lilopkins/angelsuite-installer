@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::process::Command;
 use std::{fs, io::Write};
 use std::io::{BufReader, Cursor};
 use std::sync::Mutex;
@@ -41,6 +42,8 @@ pub struct ManifestLoadResultProduct {
     pub remote_version_prerelease: String,
     /// The description of this product
     pub description: String,
+    /// Can this installation be started?
+    pub can_start: bool,
     /// Prerelease enabled
     pub allow_prerelease: bool,
 }
@@ -89,6 +92,7 @@ async fn load_manifest<R: Runtime>(
             remote_version: prod.latest_version(false).to_string(),
             remote_version_prerelease: prod.latest_version(true).to_string(),
             description: prod.description().clone(),
+            can_start: install_prod.map(|p| p.main_executable().is_some()).unwrap_or(false),
             allow_prerelease: install_prod.map(|p| *p.use_prerelease()).unwrap_or(false),
         });
     }
@@ -164,11 +168,25 @@ fn install_app<R: Runtime>(
 
             // Evaluate strategy
             match download.strategy() {
-                DownloadStrategy::File(name) => {
-                    let mut f = fs::File::create(format!("{}/{name}", prod.install_directory()))
+                DownloadStrategy::File { name, chmod } => {
+                    let path = format!("{}/{name}", prod.install_directory());
+                    let mut f = fs::File::create(&path)
                         .map_err(|_| "Failed to create target file".to_string())?;
                     f.write_all(&*req)
                         .map_err(|_| "Failed to write data".to_string())?;
+                    #[cfg(target_os = "linux")]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
+
+                        if *chmod {
+                            let mut perms = fs::metadata(&path)
+                                .map_err(|_| "Failed to set permissions".to_string())?
+                                .permissions();
+                            perms.set_mode(perms.mode() | 0o100);
+                            fs::set_permissions(path, perms)
+                                .map_err(|_| "Failed to set permissions".to_string())?;
+                        }
+                    }
                 },
                 DownloadStrategy::ZipFile => {
                     zip_extract::extract(Cursor::new(req), &PathBuf::from(prod.install_directory()), true)
@@ -177,6 +195,10 @@ fn install_app<R: Runtime>(
             }
 
             prod_install.set_version(Some(version.to_string()));
+            if let Some(exec) = download.executable() {
+                prod_install.set_main_executable(Some(format!("{}/{exec}", prod.install_directory())));
+                prod_install.set_execute_working_directory(Some(prod.install_directory().clone()));
+            }
             install
                 .save()
                 .expect("failed to update installer.json after uninstalling");
@@ -213,6 +235,31 @@ fn remove_app<R: Runtime>(
     Err("Product not found!".to_string())
 }
 
+#[tauri::command]
+fn start_app<R: Runtime>(
+    _app: tauri::AppHandle<R>,
+    state: tauri::State<'_, AppData>,
+    _window: tauri::Window<R>,
+    id: String,
+) -> Result<(), String> {
+    // Find install directory for app ID, then delete.
+    let install = state.install_data.lock().unwrap();
+    let prod = install.products().get(&id);
+    if prod.is_none() {
+        return Err("Product not found!".to_string());
+    }
+    let prod = prod.unwrap();
+
+    if let Some(exec_path) = prod.main_executable() {
+        let canonical_path = fs::canonicalize(exec_path).map_err(|e| e.to_string())?;
+        Command::new(canonical_path)
+            .current_dir(prod.execute_working_directory().clone().unwrap_or(".".to_string()))
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -226,6 +273,7 @@ pub fn run() {
             set_prerelease,
             install_app,
             remove_app,
+            start_app,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

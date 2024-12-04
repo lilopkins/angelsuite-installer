@@ -101,13 +101,20 @@ pub struct DownloadSpec {
     url: String,
     /// The download/install strategy
     strategy: DownloadStrategy,
+    /// The path to the executable to start this product, if it can be started.
+    executable: Option<String>,
 }
 
 /// The possible download and install strategies
 #[derive(Clone, Debug, Deserialize)]
 pub enum DownloadStrategy {
     /// Download a single file. This file should remain unprocessed in the target directory
-    File(String),
+    File {
+        /// The name to save the file as.
+        name: String,
+        /// Should the file be chmod u+x'ed?
+        chmod: bool,
+    },
     /// Download a compressed ZIP file. This file should be unzipped in the target directory
     ZipFile,
 }

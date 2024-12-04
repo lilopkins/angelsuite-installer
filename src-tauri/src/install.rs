@@ -33,6 +33,10 @@ impl Install {
 pub struct InstalledProduct {
     /// The installed version, if the product is installed.
     version: Option<String>,
+    /// The path to the working directory of this product, if it can be started.
+    execute_working_directory: Option<String>,
+    /// The path to the executable to start this product, if it can be started.
+    main_executable: Option<String>,
     /// Should this product use prerelease versions?
     use_prerelease: bool,
 }

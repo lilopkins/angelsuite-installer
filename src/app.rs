@@ -29,6 +29,8 @@ pub struct ManifestLoadResultProduct {
     pub remote_version_prerelease: String,
     /// The description of this product
     pub description: String,
+    /// Can this installation be started?
+    pub can_start: bool,
     /// Prerelease enabled
     pub allow_prerelease: bool,
 }
@@ -78,13 +80,17 @@ pub fn app() -> Html {
                 remote_version_prerelease={ prod.remote_version_prerelease }
                 description={ prod.description }
                 allow_prerelease={ prod.allow_prerelease }
+                can_start={ prod.can_start }
                 set_progress_message={ &cb_set_progress_message } />
         }
     }).collect();
 
     html! {
         <>
-            <h1>{"AngelSuite Installer"}</h1>
+            <div class="title">
+                <img src="/public/icon.png" aria-hidden="true" alt="" />
+                <h1>{"AngelSuite"}</h1>
+            </div>
             { update_notification }
             <p hidden={ (*progress_message).is_none() }>{ &*progress_message }</p>
 
@@ -111,6 +117,8 @@ pub struct ItemProps {
     pub description: String,
     /// Prerelease enabled
     pub allow_prerelease: bool,
+    /// Can this installation be started?
+    pub can_start: bool,
     /// Update the progress message
     pub set_progress_message: Callback<(Option<String>, bool)>,
 }
@@ -130,7 +138,7 @@ struct SetPrereleaseArgs {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct InstallUpgradeRemoveArgs {
+struct StartInstallUpgradeRemoveArgs {
     id: String,
 }
 
@@ -170,6 +178,11 @@ pub fn item(props: &ItemProps) -> Html {
         _ => false,
     };
 
+    let hide_start = match &state {
+        State::NotInstalled(_) => true,
+        _ => !props.can_start,
+    };
+
     let install_uprade_txt = match &state {
         State::InstalledUpdate(_, _) => "Update",
         State::NotInstalled(_) => "Install",
@@ -187,13 +200,29 @@ pub fn item(props: &ItemProps) -> Html {
             let id = id.clone();
             let cb = cb.clone();
             spawn_local(async move {
-                let args = serde_wasm_bindgen::to_value(&InstallUpgradeRemoveArgs {
+                let args = serde_wasm_bindgen::to_value(&StartInstallUpgradeRemoveArgs {
                     id: (*id).clone(),
                 })
                 .unwrap();
                 invoke("install_app", args).await;
 
                 cb.emit((None, true));
+            });
+        })
+    };
+
+    let onclick_start = {
+        let id = id.clone();
+        Callback::from(move |e: MouseEvent| {
+            e.prevent_default();
+            
+            let id = id.clone();
+            spawn_local(async move {
+                let args = serde_wasm_bindgen::to_value(&StartInstallUpgradeRemoveArgs {
+                    id: (*id).clone(),
+                })
+                .unwrap();
+                invoke("start_app", args).await;
             });
         })
     };
@@ -209,7 +238,7 @@ pub fn item(props: &ItemProps) -> Html {
             let id = id.clone();
             let cb = cb.clone();
             spawn_local(async move {
-                let args = serde_wasm_bindgen::to_value(&InstallUpgradeRemoveArgs {
+                let args = serde_wasm_bindgen::to_value(&StartInstallUpgradeRemoveArgs {
                     id: (*id).clone(),
                 })
                 .unwrap();
@@ -254,6 +283,7 @@ pub fn item(props: &ItemProps) -> Html {
                 <input type="checkbox" name="allow_prerelease" onchange={ onchange_prerelease } checked={*allow_prereleases} />
                 { "Use Prerelease Versions" }
             </label>
+            <button class="item__install" onclick={ onclick_start } hidden={ hide_start }>{ "Start" }</button>
             <button class="item__install" onclick={ onclick_install } hidden={ hide_install_upgrade }>{ install_uprade_txt }</button>
             <button class="item__install" onclick={ onclick_remove } hidden={ hide_remove }>{ "Remove" }</button>
         </div>
