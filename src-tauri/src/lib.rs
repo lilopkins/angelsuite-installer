@@ -1,8 +1,8 @@
+use std::io::{BufReader, Cursor};
 use std::path::PathBuf;
 use std::process::Command;
-use std::{fs, io::Write};
-use std::io::{BufReader, Cursor};
 use std::sync::Mutex;
+use std::{fs, io::Write};
 
 use install::Install;
 use manifest::{DownloadStrategy, Manifest, ManifestVersionOnly};
@@ -10,9 +10,9 @@ use semver::Version;
 use serde::Serialize;
 use tauri::{Manager, Runtime};
 
+mod gzip;
 mod install;
 mod manifest;
-mod gzip;
 
 pub const MANIFEST_URL: &'static str = "https://gist.githubusercontent.com/lilopkins/a9a624367414e48f860f0fa0ef609c98/raw/manifest.json";
 
@@ -94,8 +94,10 @@ async fn load_manifest<R: Runtime>(
         Install::default()
             .save()
             .expect("couldn't produce default installer.json");
-        serde_json::from_reader(BufReader::new(fs::File::open(local_install_file()).unwrap()))
-            .expect("installer.json is invalid on disk")
+        serde_json::from_reader(BufReader::new(
+            fs::File::open(local_install_file()).unwrap(),
+        ))
+        .expect("installer.json is invalid on disk")
     };
 
     let res = reqwest::get(MANIFEST_URL).await;
@@ -104,7 +106,9 @@ async fn load_manifest<R: Runtime>(
         // Work offline
         // Load installed products
         for (prod_id, prod) in install_data.products() {
-            if prod.version().is_none() { continue; }
+            if prod.version().is_none() {
+                continue;
+            }
             result.products.push(ManifestLoadResultProduct {
                 id: prod_id.clone(),
                 name: prod.name().clone(),
@@ -131,9 +135,10 @@ async fn load_manifest<R: Runtime>(
     let body: Result<Manifest, _> = serde_json::from_str(&res);
     if body.is_err() {
         // Try to parse version only. If a new version is available, alert that only.
-        let body: ManifestVersionOnly = serde_json::from_str(&res)
-        .map_err(|_| "Failed to parse manifest".to_string())?;
-        if semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap() < *body.latest_installer_version()
+        let body: ManifestVersionOnly =
+            serde_json::from_str(&res).map_err(|_| "Failed to parse manifest".to_string())?;
+        if semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap()
+            < *body.latest_installer_version()
         {
             result.installer_update_available = Some(body.latest_installer_version().to_string());
             return Ok(result);
@@ -161,7 +166,9 @@ async fn load_manifest<R: Runtime>(
             description: prod.description().clone(),
             has_os_match: prod.latest_version_data(false).is_some(),
             has_os_match_prerelease: prod.latest_version_data(true).is_some(),
-            can_start: install_prod.map(|p| p.main_executable().is_some()).unwrap_or(false),
+            can_start: install_prod
+                .map(|p| p.main_executable().is_some())
+                .unwrap_or(false),
             allow_prerelease: install_prod.map(|p| *p.use_prerelease()).unwrap_or(false),
         });
     }
@@ -261,15 +268,15 @@ fn install_app<R: Runtime>(
                                 .map_err(|_| "Failed to set permissions".to_string())?;
                         }
                     }
-                },
+                }
                 DownloadStrategy::ZipFile => {
                     zip_extract::extract(Cursor::new(req), &install_directory, true)
                         .map_err(|_| "Failed to extract data".to_string())?;
-                },
+                }
                 DownloadStrategy::GzippedTarball => {
                     gzip::extract_tar_gz(Cursor::new(req), &install_directory)
                         .map_err(|_| "Failed to extract data".to_string())?;
-                },
+                }
             }
 
             prod_install.set_name(prod.name().clone());
@@ -278,8 +285,11 @@ fn install_app<R: Runtime>(
             if let Some(exec) = download.executable() {
                 let mut main_exec_path = install_directory.clone();
                 main_exec_path.push(exec);
-                prod_install.set_main_executable(Some(main_exec_path.to_string_lossy().to_string()));
-                prod_install.set_execute_working_directory(Some(install_directory.to_string_lossy().to_string()));
+                prod_install
+                    .set_main_executable(Some(main_exec_path.to_string_lossy().to_string()));
+                prod_install.set_execute_working_directory(Some(
+                    install_directory.to_string_lossy().to_string(),
+                ));
             }
             install
                 .save()
@@ -340,7 +350,11 @@ fn start_app<R: Runtime>(
     if let Some(exec_path) = prod.main_executable() {
         let canonical_path = fs::canonicalize(exec_path).map_err(|e| e.to_string())?;
         Command::new(canonical_path)
-            .current_dir(prod.execute_working_directory().clone().unwrap_or(".".to_string()))
+            .current_dir(
+                prod.execute_working_directory()
+                    .clone()
+                    .unwrap_or(".".to_string()),
+            )
             .spawn()
             .map_err(|e| e.to_string())?;
     }

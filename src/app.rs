@@ -73,23 +73,27 @@ pub fn app() -> Html {
         })
     };
 
-    let items: Vec<_> = (*manifest_load_result).products.iter().map(|prod| {
-        let prod = prod.clone();
-        html! {
-            <Item
-                id={ prod.id }
-                name={ prod.name }
-                local_version={ prod.local_version }
-                remote_version={ prod.remote_version }
-                remote_version_prerelease={ prod.remote_version_prerelease }
-                description={ prod.description }
-                allow_prerelease={ prod.allow_prerelease }
-                has_os_match_prerelease={ prod.has_os_match_prerelease }
-                has_os_match={ prod.has_os_match }
-                can_start={ prod.can_start }
-                set_progress_message={ &cb_set_progress_message } />
-        }
-    }).collect();
+    let items: Vec<_> = (*manifest_load_result)
+        .products
+        .iter()
+        .map(|prod| {
+            let prod = prod.clone();
+            html! {
+                <Item
+                    id={ prod.id }
+                    name={ prod.name }
+                    local_version={ prod.local_version }
+                    remote_version={ prod.remote_version }
+                    remote_version_prerelease={ prod.remote_version_prerelease }
+                    description={ prod.description }
+                    allow_prerelease={ prod.allow_prerelease }
+                    has_os_match_prerelease={ prod.has_os_match_prerelease }
+                    has_os_match={ prod.has_os_match }
+                    can_start={ prod.can_start }
+                    set_progress_message={ &cb_set_progress_message } />
+            }
+        })
+        .collect();
 
     html! {
         <>
@@ -180,11 +184,13 @@ pub fn item(props: &ItemProps) -> Html {
     let state_str = match &state {
         State::InstalledLatest(v) => format!("Installed v{v}, latest"),
         State::InstalledUpdate(v, l) => format!("Installed v{v}, v{l} available"),
-        State::NotInstalled(l) => if l == "0.0.0" || !has_os_match {
+        State::NotInstalled(l) => {
+            if l == "0.0.0" || !has_os_match {
                 "Not available for your system".to_string()
             } else {
                 format!("v{} available", l)
-            },
+            }
+        }
     };
 
     let hide_install_upgrade = match &state {
@@ -234,7 +240,7 @@ pub fn item(props: &ItemProps) -> Html {
         let id = id.clone();
         Callback::from(move |e: MouseEvent| {
             e.prevent_default();
-            
+
             let id = id.clone();
             spawn_local(async move {
                 let args = serde_wasm_bindgen::to_value(&StartInstallUpgradeRemoveArgs {
@@ -253,7 +259,7 @@ pub fn item(props: &ItemProps) -> Html {
             e.prevent_default();
 
             cb.emit((Some("Removing...".to_string()), false));
-            
+
             let id = id.clone();
             let cb = cb.clone();
             spawn_local(async move {
