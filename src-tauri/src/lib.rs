@@ -266,6 +266,8 @@ fn remove_app<R: Runtime>(
                 .expect("failed to delete a directory managed by the installer");
             let prod_install = install.get_mut_product_or_default(id);
             prod_install.set_version(None);
+            prod_install.set_main_executable(None);
+            prod_install.set_execute_working_directory(None);
             install
                 .save()
                 .expect("failed to update installer.json after uninstalling");
