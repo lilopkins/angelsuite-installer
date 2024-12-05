@@ -12,6 +12,14 @@ pub struct Manifest {
     products: Vec<Product>,
 }
 
+/// The manifest, parsing only the version
+#[derive(Clone, Debug, Deserialize, Getters)]
+#[getset(get = "pub")]
+pub struct ManifestVersionOnly {
+    /// A semver of the latest installer version
+    latest_installer_version: Version,
+}
+
 /// The available products.
 #[derive(Clone, Debug, Deserialize, Getters)]
 #[getset(get = "pub")]
@@ -115,6 +123,8 @@ pub enum DownloadStrategy {
         /// Should the file be chmod u+x'ed?
         chmod: bool,
     },
-    /// Download a compressed ZIP file. This file should be unzipped in the target directory
+    /// Download a compressed ZIP file. This file should be unzipped in the target directory, flattening if needed
     ZipFile,
+    /// Download a gzip compressed tarball file. This file should be uncompressed in the target directory, flattening if needed
+    GzippedTarball,
 }

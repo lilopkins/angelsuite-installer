@@ -1,7 +1,7 @@
 [package]
 name = "angelsuite-installer"
-version = "0.2.1"
-description = " An installer utility for managing Angelsuite tools."
+version = "0.3.0"
+description = "An installer utility for managing Angelsuite tools."
 authors = ["Lily Hopkins <lily@hpkns.uk>"]
 edition = "2021"
 
@@ -26,4 +26,7 @@ getset = "0.1.3"
 semver = { version = "1.0.23", features = ["serde"] }
 reqwest = { version = "0.12.9", features = ["blocking"] }
 zip-extract = "0.2.1"
+dirs = "5.0.1"
+tar = "0.4.43"
+flate2 = "1.0.35"
 

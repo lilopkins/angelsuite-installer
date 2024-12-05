@@ -1,20 +1,45 @@
+use std::io::{BufReader, Cursor};
 use std::path::PathBuf;
 use std::process::Command;
-use std::{fs, io::Write};
-use std::io::{BufReader, Cursor};
 use std::sync::Mutex;
+use std::{fs, io::Write};
 
 use install::Install;
-use manifest::{DownloadStrategy, Manifest};
+use manifest::{DownloadStrategy, Manifest, ManifestVersionOnly};
 use semver::Version;
 use serde::Serialize;
 use tauri::{Manager, Runtime};
 
+mod gzip;
 mod install;
 mod manifest;
 
 pub const MANIFEST_URL: &'static str = "https://gist.githubusercontent.com/lilopkins/a9a624367414e48f860f0fa0ef609c98/raw/manifest.json";
-pub const LOCAL_INSTALL_FILE: &'static str = "installer.json";
+
+#[cfg(target_os = "windows")]
+pub fn local_install_file() -> PathBuf {
+    PathBuf::from("./installer.json")
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+pub fn local_install_file() -> PathBuf {
+    let mut path = dirs::config_dir().unwrap();
+    path.push("angelsuite.json");
+    path
+}
+
+#[cfg(target_os = "windows")]
+pub fn local_install_dir() -> PathBuf {
+    PathBuf::from(".")
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+pub fn local_install_dir() -> PathBuf {
+    let mut base = dirs::data_local_dir().unwrap();
+    base.push("angelsuite");
+    fs::create_dir_all(&base).unwrap();
+    base
+}
 
 #[derive(Default)]
 struct AppData {
@@ -58,23 +83,10 @@ async fn load_manifest<R: Runtime>(
     state: tauri::State<'_, AppData>,
     _window: tauri::Window<R>,
 ) -> Result<ManifestLoadResult, String> {
-    let body: Manifest = reqwest::get(MANIFEST_URL)
-        .await
-        .map_err(|_| "Failed to get manifest".to_string())?
-        .json()
-        .await
-        .map_err(|_| "Failed to parse manifest".to_string())?;
-    *state.manifest.lock().unwrap() = Some(body.clone());
     let mut result = ManifestLoadResult::default();
 
-    // Check if installer needs updating and notify frontend
-    if semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap() < *body.latest_installer_version()
-    {
-        result.installer_update_available = Some(body.latest_installer_version().to_string());
-    }
-
     // Check if `installer.json` exists. If not, create it.
-    let install_data = if let Ok(f) = fs::File::open(LOCAL_INSTALL_FILE) {
+    let install_data = if let Ok(f) = fs::File::open(local_install_file()) {
         let i: Install =
             serde_json::from_reader(BufReader::new(f)).expect("installer.json is invalid on disk");
         i
@@ -82,9 +94,65 @@ async fn load_manifest<R: Runtime>(
         Install::default()
             .save()
             .expect("couldn't produce default installer.json");
-        serde_json::from_reader(BufReader::new(fs::File::open(LOCAL_INSTALL_FILE).unwrap()))
-            .expect("installer.json is invalid on disk")
+        serde_json::from_reader(BufReader::new(
+            fs::File::open(local_install_file()).unwrap(),
+        ))
+        .expect("installer.json is invalid on disk")
     };
+
+    let res = reqwest::get(MANIFEST_URL).await;
+
+    if res.is_err() || std::env::var("ANGEL_WORK_OFFLINE") == Ok("1".to_string()) {
+        // Work offline
+        // Load installed products
+        for (prod_id, prod) in install_data.products() {
+            if prod.version().is_none() {
+                continue;
+            }
+            result.products.push(ManifestLoadResultProduct {
+                id: prod_id.clone(),
+                name: prod.name().clone(),
+                local_version: prod.version().clone(),
+                remote_version: "0.0.0".to_string(),
+                remote_version_prerelease: "0.0.0".to_string(),
+                description: prod.description().clone(),
+                has_os_match_prerelease: prod.main_executable().is_some(),
+                has_os_match: prod.main_executable().is_some(),
+                can_start: prod.main_executable().is_some(),
+                allow_prerelease: *prod.use_prerelease(),
+            });
+        }
+
+        *state.install_data.lock().unwrap() = install_data;
+        return Ok(result);
+    }
+    let res = res
+        .unwrap()
+        .text()
+        .await
+        .map_err(|_| "Failed to read manifest".to_string())?;
+
+    let body: Result<Manifest, _> = serde_json::from_str(&res);
+    if body.is_err() {
+        // Try to parse version only. If a new version is available, alert that only.
+        let body: ManifestVersionOnly =
+            serde_json::from_str(&res).map_err(|_| "Failed to parse manifest".to_string())?;
+        if semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap()
+            < *body.latest_installer_version()
+        {
+            result.installer_update_available = Some(body.latest_installer_version().to_string());
+            return Ok(result);
+        }
+    }
+
+    let body = body.unwrap();
+    *state.manifest.lock().unwrap() = Some(body.clone());
+
+    // Check if installer needs updating and notify frontend
+    if semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap() < *body.latest_installer_version()
+    {
+        result.installer_update_available = Some(body.latest_installer_version().to_string());
+    }
 
     // Detect products to present to frontend, current install status and upgrade possibility and notify frontend
     for prod in body.products() {
@@ -98,7 +166,9 @@ async fn load_manifest<R: Runtime>(
             description: prod.description().clone(),
             has_os_match: prod.latest_version_data(false).is_some(),
             has_os_match_prerelease: prod.latest_version_data(true).is_some(),
-            can_start: install_prod.map(|p| p.main_executable().is_some()).unwrap_or(false),
+            can_start: install_prod
+                .map(|p| p.main_executable().is_some())
+                .unwrap_or(false),
             allow_prerelease: install_prod.map(|p| *p.use_prerelease()).unwrap_or(false),
         });
     }
@@ -135,7 +205,10 @@ fn install_app<R: Runtime>(
     let mf = mf_mutex.as_ref().unwrap();
     for prod in mf.products() {
         if *prod.id() == id {
-            let install_directory = prod.install_directory();
+            let mut install_directory = local_install_dir();
+            install_directory.push(prod.install_directory());
+            let install_directory = install_directory;
+
             let prod_install = install.get_mut_product_or_default(id);
             let current_version = prod_install
                 .version()
@@ -151,14 +224,15 @@ fn install_app<R: Runtime>(
                     .filter(|maybe_removal| maybe_removal.on_upgrade_from().matches(&v));
                 for removal in removals {
                     for file in removal.files() {
-                        let path = format!("{install_directory}/{file}");
+                        let mut path = install_directory.clone();
+                        path.push(file);
                         let _ = fs::remove_file(path);
                     }
                 }
             }
 
             // Install
-            fs::create_dir_all(install_directory).unwrap();
+            fs::create_dir_all(&install_directory).unwrap();
 
             let download = prod.latest_version_data(*prod_install.use_prerelease());
             if download.is_none() {
@@ -175,12 +249,13 @@ fn install_app<R: Runtime>(
             // Evaluate strategy
             match download.strategy() {
                 DownloadStrategy::File { name, chmod } => {
-                    let path = format!("{}/{name}", prod.install_directory());
+                    let mut path = install_directory.clone();
+                    path.push(name);
                     let mut f = fs::File::create(&path)
                         .map_err(|_| "Failed to create target file".to_string())?;
                     f.write_all(&*req)
                         .map_err(|_| "Failed to write data".to_string())?;
-                    #[cfg(target_os = "linux")]
+                    #[cfg(unix)]
                     {
                         use std::os::unix::fs::PermissionsExt;
 
@@ -193,17 +268,28 @@ fn install_app<R: Runtime>(
                                 .map_err(|_| "Failed to set permissions".to_string())?;
                         }
                     }
-                },
+                }
                 DownloadStrategy::ZipFile => {
-                    zip_extract::extract(Cursor::new(req), &PathBuf::from(prod.install_directory()), true)
+                    zip_extract::extract(Cursor::new(req), &install_directory, true)
                         .map_err(|_| "Failed to extract data".to_string())?;
-                },
+                }
+                DownloadStrategy::GzippedTarball => {
+                    gzip::extract_tar_gz(Cursor::new(req), &install_directory)
+                        .map_err(|_| "Failed to extract data".to_string())?;
+                }
             }
 
+            prod_install.set_name(prod.name().clone());
+            prod_install.set_description(prod.description().clone());
             prod_install.set_version(Some(version.to_string()));
             if let Some(exec) = download.executable() {
-                prod_install.set_main_executable(Some(format!("{}/{exec}", prod.install_directory())));
-                prod_install.set_execute_working_directory(Some(prod.install_directory().clone()));
+                let mut main_exec_path = install_directory.clone();
+                main_exec_path.push(exec);
+                prod_install
+                    .set_main_executable(Some(main_exec_path.to_string_lossy().to_string()));
+                prod_install.set_execute_working_directory(Some(
+                    install_directory.to_string_lossy().to_string(),
+                ));
             }
             install
                 .save()
@@ -227,11 +313,16 @@ fn remove_app<R: Runtime>(
     let mf = mf_mutex.as_ref().unwrap();
     for prod in mf.products() {
         if *prod.id() == id {
-            let install_directory = prod.install_directory();
+            let mut install_directory = local_install_dir();
+            install_directory.push(prod.install_directory());
+            let install_directory = install_directory;
+
             fs::remove_dir_all(install_directory)
                 .expect("failed to delete a directory managed by the installer");
             let prod_install = install.get_mut_product_or_default(id);
             prod_install.set_version(None);
+            prod_install.set_main_executable(None);
+            prod_install.set_execute_working_directory(None);
             install
                 .save()
                 .expect("failed to update installer.json after uninstalling");
@@ -259,7 +350,11 @@ fn start_app<R: Runtime>(
     if let Some(exec_path) = prod.main_executable() {
         let canonical_path = fs::canonicalize(exec_path).map_err(|e| e.to_string())?;
         Command::new(canonical_path)
-            .current_dir(prod.execute_working_directory().clone().unwrap_or(".".to_string()))
+            .current_dir(
+                prod.execute_working_directory()
+                    .clone()
+                    .unwrap_or(".".to_string()),
+            )
             .spawn()
             .map_err(|e| e.to_string())?;
     }
