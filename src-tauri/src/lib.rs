@@ -5,7 +5,7 @@ use std::io::{BufReader, Cursor};
 use std::sync::Mutex;
 
 use install::Install;
-use manifest::{DownloadStrategy, Manifest};
+use manifest::{DownloadStrategy, Manifest, ManifestVersionOnly};
 use semver::Version;
 use serde::Serialize;
 use tauri::{Manager, Runtime};
@@ -82,14 +82,29 @@ async fn load_manifest<R: Runtime>(
     state: tauri::State<'_, AppData>,
     _window: tauri::Window<R>,
 ) -> Result<ManifestLoadResult, String> {
-    let body: Manifest = reqwest::get(MANIFEST_URL)
+    let mut result = ManifestLoadResult::default();
+
+    let res = reqwest::get(MANIFEST_URL)
         .await
         .map_err(|_| "Failed to get manifest".to_string())?
-        .json()
+        .text()
         .await
+        .map_err(|_| "Failed to read manifest".to_string())?;
+
+    let body: Result<Manifest, _> = serde_json::from_str(&res);
+    if body.is_err() {
+        // Try to parse version only. If a new version is available, alert that only.
+        let body: ManifestVersionOnly = serde_json::from_str(&res)
         .map_err(|_| "Failed to parse manifest".to_string())?;
+        if semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap() < *body.latest_installer_version()
+        {
+            result.installer_update_available = Some(body.latest_installer_version().to_string());
+            return Ok(result);
+        }
+    }
+
+    let body = body.unwrap();
     *state.manifest.lock().unwrap() = Some(body.clone());
-    let mut result = ManifestLoadResult::default();
 
     // Check if installer needs updating and notify frontend
     if semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap() < *body.latest_installer_version()

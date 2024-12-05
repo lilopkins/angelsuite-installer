@@ -12,6 +12,14 @@ pub struct Manifest {
     products: Vec<Product>,
 }
 
+/// The manifest, parsing only the version
+#[derive(Clone, Debug, Deserialize, Getters)]
+#[getset(get = "pub")]
+pub struct ManifestVersionOnly {
+    /// A semver of the latest installer version
+    latest_installer_version: Version,
+}
+
 /// The available products.
 #[derive(Clone, Debug, Deserialize, Getters)]
 #[getset(get = "pub")]
