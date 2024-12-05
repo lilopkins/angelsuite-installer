@@ -43,7 +43,7 @@ pub struct ManifestLoadResultProduct {
 pub fn app() -> Html {
     let progress_message = use_state(|| None::<String>);
     let update_manifest = use_state(|| 0);
-    let manifest_load_result = use_state(|| ManifestLoadResult::default());
+    let manifest_load_result = use_state(ManifestLoadResult::default);
 
     {
         let manifest_load_result = manifest_load_result.clone();
@@ -56,7 +56,7 @@ pub fn app() -> Html {
         });
     }
 
-    let update_notification = (*manifest_load_result).installer_update_available.clone().map(|v| html! {
+    let update_notification = manifest_load_result.installer_update_available.clone().map(|v| html! {
         <p class="update-notification">{ "An update to the installer is available. (version " }{ v } { ")" }</p>
     });
 
@@ -73,7 +73,7 @@ pub fn app() -> Html {
         })
     };
 
-    let items: Vec<_> = (*manifest_load_result)
+    let items: Vec<_> = manifest_load_result
         .products
         .iter()
         .map(|prod| {
@@ -198,15 +198,8 @@ pub fn item(props: &ItemProps) -> Html {
         _ => remote_version == "0.0.0" || !has_os_match,
     };
 
-    let hide_remove = match &state {
-        State::NotInstalled(_) => true,
-        _ => false,
-    };
-
-    let hide_start = match &state {
-        State::NotInstalled(_) => true,
-        _ => !props.can_start,
-    };
+    let hide_remove = matches!(&state, State::NotInstalled(_));
+    let hide_start = matches!(&state, State::NotInstalled(_));
 
     let install_uprade_txt = match &state {
         State::InstalledUpdate(_, _) => "Update",
