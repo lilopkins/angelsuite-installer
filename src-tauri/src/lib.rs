@@ -14,7 +14,31 @@ mod install;
 mod manifest;
 
 pub const MANIFEST_URL: &'static str = "https://gist.githubusercontent.com/lilopkins/a9a624367414e48f860f0fa0ef609c98/raw/manifest.json";
-pub const LOCAL_INSTALL_FILE: &'static str = "installer.json";
+
+#[cfg(target_os = "windows")]
+pub fn local_install_file() -> PathBuf {
+    PathBuf::from("./installer.json")
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+pub fn local_install_file() -> PathBuf {
+    let mut path = dirs::config_dir().unwrap();
+    path.push("angelsuite.json");
+    path
+}
+
+#[cfg(target_os = "windows")]
+pub fn local_install_dir() -> PathBuf {
+    PathBuf::from(".")
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+pub fn local_install_dir() -> PathBuf {
+    let mut base = dirs::data_local_dir().unwrap();
+    base.push("angelsuite");
+    fs::create_dir_all(&base).unwrap();
+    base
+}
 
 #[derive(Default)]
 struct AppData {
@@ -74,7 +98,7 @@ async fn load_manifest<R: Runtime>(
     }
 
     // Check if `installer.json` exists. If not, create it.
-    let install_data = if let Ok(f) = fs::File::open(LOCAL_INSTALL_FILE) {
+    let install_data = if let Ok(f) = fs::File::open(local_install_file()) {
         let i: Install =
             serde_json::from_reader(BufReader::new(f)).expect("installer.json is invalid on disk");
         i
@@ -82,7 +106,7 @@ async fn load_manifest<R: Runtime>(
         Install::default()
             .save()
             .expect("couldn't produce default installer.json");
-        serde_json::from_reader(BufReader::new(fs::File::open(LOCAL_INSTALL_FILE).unwrap()))
+        serde_json::from_reader(BufReader::new(fs::File::open(local_install_file()).unwrap()))
             .expect("installer.json is invalid on disk")
     };
 
@@ -135,7 +159,10 @@ fn install_app<R: Runtime>(
     let mf = mf_mutex.as_ref().unwrap();
     for prod in mf.products() {
         if *prod.id() == id {
-            let install_directory = prod.install_directory();
+            let mut install_directory = local_install_dir();
+            install_directory.push(prod.install_directory());
+            let install_directory = install_directory;
+
             let prod_install = install.get_mut_product_or_default(id);
             let current_version = prod_install
                 .version()
@@ -151,14 +178,15 @@ fn install_app<R: Runtime>(
                     .filter(|maybe_removal| maybe_removal.on_upgrade_from().matches(&v));
                 for removal in removals {
                     for file in removal.files() {
-                        let path = format!("{install_directory}/{file}");
+                        let mut path = install_directory.clone();
+                        path.push(file);
                         let _ = fs::remove_file(path);
                     }
                 }
             }
 
             // Install
-            fs::create_dir_all(install_directory).unwrap();
+            fs::create_dir_all(&install_directory).unwrap();
 
             let download = prod.latest_version_data(*prod_install.use_prerelease());
             if download.is_none() {
@@ -175,7 +203,8 @@ fn install_app<R: Runtime>(
             // Evaluate strategy
             match download.strategy() {
                 DownloadStrategy::File { name, chmod } => {
-                    let path = format!("{}/{name}", prod.install_directory());
+                    let mut path = install_directory.clone();
+                    path.push(name);
                     let mut f = fs::File::create(&path)
                         .map_err(|_| "Failed to create target file".to_string())?;
                     f.write_all(&*req)
@@ -195,15 +224,17 @@ fn install_app<R: Runtime>(
                     }
                 },
                 DownloadStrategy::ZipFile => {
-                    zip_extract::extract(Cursor::new(req), &PathBuf::from(prod.install_directory()), true)
+                    zip_extract::extract(Cursor::new(req), &install_directory, true)
                         .map_err(|_| "Failed to extract data".to_string())?;
                 },
             }
 
             prod_install.set_version(Some(version.to_string()));
             if let Some(exec) = download.executable() {
-                prod_install.set_main_executable(Some(format!("{}/{exec}", prod.install_directory())));
-                prod_install.set_execute_working_directory(Some(prod.install_directory().clone()));
+                let mut main_exec_path = install_directory.clone();
+                main_exec_path.push(exec);
+                prod_install.set_main_executable(Some(main_exec_path.to_string_lossy().to_string()));
+                prod_install.set_execute_working_directory(Some(install_directory.to_string_lossy().to_string()));
             }
             install
                 .save()
@@ -227,7 +258,10 @@ fn remove_app<R: Runtime>(
     let mf = mf_mutex.as_ref().unwrap();
     for prod in mf.products() {
         if *prod.id() == id {
-            let install_directory = prod.install_directory();
+            let mut install_directory = local_install_dir();
+            install_directory.push(prod.install_directory());
+            let install_directory = install_directory;
+
             fs::remove_dir_all(install_directory)
                 .expect("failed to delete a directory managed by the installer");
             let prod_install = install.get_mut_product_or_default(id);

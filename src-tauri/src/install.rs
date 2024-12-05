@@ -12,7 +12,7 @@ pub struct Install {
 impl Install {
     pub fn save(&self) -> std::io::Result<()> {
         serde_json::to_writer(
-            std::io::BufWriter::new(std::fs::File::create(super::LOCAL_INSTALL_FILE)?),
+            std::io::BufWriter::new(std::fs::File::create(super::local_install_file())?),
             self,
         )
         .unwrap();
