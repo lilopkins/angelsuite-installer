@@ -1,7 +1,7 @@
 [package]
 name = "angelsuite-installer"
 version = "0.3.0"
-description = " An installer utility for managing Angelsuite tools."
+description = "An installer utility for managing Angelsuite tools."
 authors = ["Lily Hopkins <lily@hpkns.uk>"]
 edition = "2021"
 
