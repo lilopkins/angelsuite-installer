@@ -12,6 +12,7 @@ use tauri::{Manager, Runtime};
 
 mod install;
 mod manifest;
+mod gzip;
 
 pub const MANIFEST_URL: &'static str = "https://gist.githubusercontent.com/lilopkins/a9a624367414e48f860f0fa0ef609c98/raw/manifest.json";
 
@@ -240,6 +241,10 @@ fn install_app<R: Runtime>(
                 },
                 DownloadStrategy::ZipFile => {
                     zip_extract::extract(Cursor::new(req), &install_directory, true)
+                        .map_err(|_| "Failed to extract data".to_string())?;
+                },
+                DownloadStrategy::GzippedTarball => {
+                    gzip::extract_tar_gz(Cursor::new(req), &install_directory)
                         .map_err(|_| "Failed to extract data".to_string())?;
                 },
             }
