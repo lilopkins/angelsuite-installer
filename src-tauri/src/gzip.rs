@@ -38,8 +38,6 @@ pub fn extract_tar_gz<R: Read + Clone>(reader: R, output_dir: &Path) -> io::Resu
         }
     }
 
-    eprintln!("{topmost_dir:?}");
-
     // Reset the archive to read entries again
     archive = Archive::new(GzDecoder::new(reader));
 

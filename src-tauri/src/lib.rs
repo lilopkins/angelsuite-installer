@@ -85,9 +85,45 @@ async fn load_manifest<R: Runtime>(
 ) -> Result<ManifestLoadResult, String> {
     let mut result = ManifestLoadResult::default();
 
-    let res = reqwest::get(MANIFEST_URL)
-        .await
-        .map_err(|_| "Failed to get manifest".to_string())?
+    // Check if `installer.json` exists. If not, create it.
+    let install_data = if let Ok(f) = fs::File::open(local_install_file()) {
+        let i: Install =
+            serde_json::from_reader(BufReader::new(f)).expect("installer.json is invalid on disk");
+        i
+    } else {
+        Install::default()
+            .save()
+            .expect("couldn't produce default installer.json");
+        serde_json::from_reader(BufReader::new(fs::File::open(local_install_file()).unwrap()))
+            .expect("installer.json is invalid on disk")
+    };
+
+    let res = reqwest::get(MANIFEST_URL).await;
+
+    if res.is_err() || std::env::var("ANGEL_WORK_OFFLINE") == Ok("1".to_string()) {
+        // Work offline
+        // Load installed products
+        for (prod_id, prod) in install_data.products() {
+            if prod.version().is_none() { continue; }
+            result.products.push(ManifestLoadResultProduct {
+                id: prod_id.clone(),
+                name: prod.name().clone(),
+                local_version: prod.version().clone(),
+                remote_version: "0.0.0".to_string(),
+                remote_version_prerelease: "0.0.0".to_string(),
+                description: prod.description().clone(),
+                has_os_match_prerelease: prod.main_executable().is_some(),
+                has_os_match: prod.main_executable().is_some(),
+                can_start: prod.main_executable().is_some(),
+                allow_prerelease: *prod.use_prerelease(),
+            });
+        }
+
+        *state.install_data.lock().unwrap() = install_data;
+        return Ok(result);
+    }
+    let res = res
+        .unwrap()
         .text()
         .await
         .map_err(|_| "Failed to read manifest".to_string())?;
@@ -112,19 +148,6 @@ async fn load_manifest<R: Runtime>(
     {
         result.installer_update_available = Some(body.latest_installer_version().to_string());
     }
-
-    // Check if `installer.json` exists. If not, create it.
-    let install_data = if let Ok(f) = fs::File::open(local_install_file()) {
-        let i: Install =
-            serde_json::from_reader(BufReader::new(f)).expect("installer.json is invalid on disk");
-        i
-    } else {
-        Install::default()
-            .save()
-            .expect("couldn't produce default installer.json");
-        serde_json::from_reader(BufReader::new(fs::File::open(local_install_file()).unwrap()))
-            .expect("installer.json is invalid on disk")
-    };
 
     // Detect products to present to frontend, current install status and upgrade possibility and notify frontend
     for prod in body.products() {
@@ -225,7 +248,7 @@ fn install_app<R: Runtime>(
                         .map_err(|_| "Failed to create target file".to_string())?;
                     f.write_all(&*req)
                         .map_err(|_| "Failed to write data".to_string())?;
-                    #[cfg(target_os = "linux")]
+                    #[cfg(unix)]
                     {
                         use std::os::unix::fs::PermissionsExt;
 
@@ -249,6 +272,8 @@ fn install_app<R: Runtime>(
                 },
             }
 
+            prod_install.set_name(prod.name().clone());
+            prod_install.set_description(prod.description().clone());
             prod_install.set_version(Some(version.to_string()));
             if let Some(exec) = download.executable() {
                 let mut main_exec_path = install_directory.clone();

@@ -31,6 +31,12 @@ impl Install {
 #[derive(Serialize, Deserialize, Getters, Setters, Default)]
 #[getset(get = "pub", set = "pub")]
 pub struct InstalledProduct {
+    /// The product name
+    #[serde(default = "String::default")]
+    name: String,
+    /// The product description
+    #[serde(default = "String::default")]
+    description: String,
     /// The installed version, if the product is installed.
     version: Option<String>,
     /// The path to the working directory of this product, if it can be started.
