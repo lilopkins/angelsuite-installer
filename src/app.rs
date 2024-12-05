@@ -29,6 +29,10 @@ pub struct ManifestLoadResultProduct {
     pub remote_version_prerelease: String,
     /// The description of this product
     pub description: String,
+    /// Is there a package available that matches this OS, excluding prereleases?
+    pub has_os_match_prerelease: bool,
+    /// Is there a package available that matches this OS, including prereleases?
+    pub has_os_match: bool,
     /// Can this installation be started?
     pub can_start: bool,
     /// Prerelease enabled
@@ -80,6 +84,8 @@ pub fn app() -> Html {
                 remote_version_prerelease={ prod.remote_version_prerelease }
                 description={ prod.description }
                 allow_prerelease={ prod.allow_prerelease }
+                has_os_match_prerelease={ prod.has_os_match_prerelease }
+                has_os_match={ prod.has_os_match }
                 can_start={ prod.can_start }
                 set_progress_message={ &cb_set_progress_message } />
         }
@@ -117,6 +123,10 @@ pub struct ItemProps {
     pub description: String,
     /// Prerelease enabled
     pub allow_prerelease: bool,
+    /// Is there a package available that matches this OS, excluding prereleases?
+    pub has_os_match_prerelease: bool,
+    /// Is there a package available that matches this OS, including prereleases?
+    pub has_os_match: bool,
     /// Can this installation be started?
     pub can_start: bool,
     /// Update the progress message
@@ -152,6 +162,11 @@ pub fn item(props: &ItemProps) -> Html {
     } else {
         &props.remote_version
     };
+    let has_os_match = if *allow_prereleases {
+        props.has_os_match_prerelease
+    } else {
+        props.has_os_match
+    };
     let state = if let Some(local_version) = props.local_version.as_ref() {
         if local_version == remote_version {
             State::InstalledLatest(local_version.clone())
@@ -165,12 +180,16 @@ pub fn item(props: &ItemProps) -> Html {
     let state_str = match &state {
         State::InstalledLatest(v) => format!("Installed v{v}, latest"),
         State::InstalledUpdate(v, l) => format!("Installed v{v}, v{l} available"),
-        State::NotInstalled(l) => format!("v{} available", l),
+        State::NotInstalled(l) => if l == "0.0.0" || !has_os_match {
+                "Not available for your system".to_string()
+            } else {
+                format!("v{} available", l)
+            },
     };
 
     let hide_install_upgrade = match &state {
         State::InstalledLatest(_) => true,
-        _ => false,
+        _ => remote_version == "0.0.0" || !has_os_match,
     };
 
     let hide_remove = match &state {

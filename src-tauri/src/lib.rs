@@ -42,6 +42,10 @@ pub struct ManifestLoadResultProduct {
     pub remote_version_prerelease: String,
     /// The description of this product
     pub description: String,
+    /// Is there a package available that matches this OS, excluding prereleases?
+    pub has_os_match_prerelease: bool,
+    /// Is there a package available that matches this OS, including prereleases?
+    pub has_os_match: bool,
     /// Can this installation be started?
     pub can_start: bool,
     /// Prerelease enabled
@@ -92,6 +96,8 @@ async fn load_manifest<R: Runtime>(
             remote_version: prod.latest_version(false).to_string(),
             remote_version_prerelease: prod.latest_version(true).to_string(),
             description: prod.description().clone(),
+            has_os_match: prod.latest_version_data(false).is_some(),
+            has_os_match_prerelease: prod.latest_version_data(true).is_some(),
             can_start: install_prod.map(|p| p.main_executable().is_some()).unwrap_or(false),
             allow_prerelease: install_prod.map(|p| *p.use_prerelease()).unwrap_or(false),
         });
