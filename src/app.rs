@@ -199,7 +199,7 @@ pub fn item(props: &ItemProps) -> Html {
     };
 
     let hide_remove = matches!(&state, State::NotInstalled(_));
-    
+
     let hide_start = match &state {
         State::NotInstalled(_) => true,
         _ => !props.can_start,
