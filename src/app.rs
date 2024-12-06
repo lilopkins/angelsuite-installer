@@ -56,10 +56,6 @@ pub fn app() -> Html {
         });
     }
 
-    let update_notification = manifest_load_result.installer_update_available.clone().map(|v| html! {
-        <p class="update-notification">{ "An update to the installer is available. (version " }{ v } { ")" }</p>
-    });
-
     let cb_set_progress_message = {
         let progress_message = progress_message.clone();
         let update_manifest = update_manifest.clone();
@@ -72,6 +68,31 @@ pub fn app() -> Html {
             progress_message.set(name);
         })
     };
+
+    let onclick_update = {
+        let cb = cb_set_progress_message.clone();
+        Callback::from(move |e: MouseEvent| {
+            e.prevent_default();
+
+            cb.emit((Some("Updating...".to_string()), false));
+
+            spawn_local(async move {
+                invoke("update_installer", JsValue::null()).await;
+            });
+        })
+    };
+
+    let update_notification = manifest_load_result
+        .installer_update_available
+        .clone()
+        .map(|v| {
+            html! {
+                <p class="update-notification">
+                    { "An update to the installer is available. (version " }{ v } { ")" }
+                    <button onclick={ onclick_update }>{ "Update and Restart" }</button>
+                </p>
+            }
+        });
 
     let items: Vec<_> = manifest_load_result
         .products
@@ -182,8 +203,8 @@ pub fn item(props: &ItemProps) -> Html {
     };
 
     let state_str = match &state {
-        State::InstalledLatest(v) => format!("Installed v{v}, latest"),
-        State::InstalledUpdate(v, l) => format!("Installed v{v}, v{l} available"),
+        State::InstalledLatest(v) => format!("Installed v{v} (latest)"),
+        State::InstalledUpdate(v, l) => format!("Installed v{v} (updatable to v{l})"),
         State::NotInstalled(l) => {
             if l == "0.0.0" || !has_os_match {
                 "Not available for your system".to_string()

@@ -6,18 +6,8 @@ use serde::Deserialize;
 #[derive(Clone, Debug, Deserialize, Getters)]
 #[getset(get = "pub")]
 pub struct Manifest {
-    /// A semver of the latest installer version
-    latest_installer_version: Version,
     /// Available products
     products: Vec<Product>,
-}
-
-/// The manifest, parsing only the version
-#[derive(Clone, Debug, Deserialize, Getters)]
-#[getset(get = "pub")]
-pub struct ManifestVersionOnly {
-    /// A semver of the latest installer version
-    latest_installer_version: Version,
 }
 
 /// The available products.
