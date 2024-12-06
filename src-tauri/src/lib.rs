@@ -194,15 +194,17 @@ fn set_prerelease<R: Runtime>(
 }
 
 #[tauri::command]
-fn install_app<R: Runtime>(
+async fn install_app<R: Runtime>(
     _app: tauri::AppHandle<R>,
     state: tauri::State<'_, AppData>,
     _window: tauri::Window<R>,
     id: String,
 ) -> Result<(), String> {
-    let mf_mutex = state.manifest.lock().unwrap();
-    let mut install = state.install_data.lock().unwrap();
-    let mf = mf_mutex.as_ref().unwrap();
+    let mut install = state.install_data.lock().unwrap().clone();
+    let mf = {
+        let mf_mutex = state.manifest.lock().unwrap();
+        mf_mutex.clone().unwrap()
+    };
     for prod in mf.products() {
         if *prod.id() == id {
             let mut install_directory = local_install_dir();
@@ -241,9 +243,11 @@ fn install_app<R: Runtime>(
             let download = download.unwrap();
 
             // Download file
-            let req = reqwest::blocking::get(download.url())
+            let req = reqwest::get(download.url())
+                .await
                 .map_err(|_| "Failed to get manifest".to_string())?
                 .bytes()
+                .await
                 .map_err(|_| "Failed to download data".to_string())?;
 
             // Evaluate strategy
@@ -294,6 +298,7 @@ fn install_app<R: Runtime>(
             install
                 .save()
                 .expect("failed to update installer.json after uninstalling");
+            *state.install_data.lock().unwrap() = install;
             return Ok(());
         }
     }
@@ -301,7 +306,7 @@ fn install_app<R: Runtime>(
 }
 
 #[tauri::command]
-fn remove_app<R: Runtime>(
+async fn remove_app<R: Runtime>(
     _app: tauri::AppHandle<R>,
     state: tauri::State<'_, AppData>,
     _window: tauri::Window<R>,

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use getset::{Getters, Setters};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Getters, Default)]
+#[derive(Clone, Serialize, Deserialize, Getters, Default)]
 #[getset(get = "pub")]
 pub struct Install {
     products: HashMap<String, InstalledProduct>,
@@ -28,7 +28,7 @@ impl Install {
     }
 }
 
-#[derive(Serialize, Deserialize, Getters, Setters, Default)]
+#[derive(Clone, Serialize, Deserialize, Getters, Setters, Default)]
 #[getset(get = "pub", set = "pub")]
 pub struct InstalledProduct {
     /// The product name

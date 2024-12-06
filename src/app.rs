@@ -102,9 +102,9 @@ pub fn app() -> Html {
                 <h1>{"AngelSuite"}</h1>
             </div>
             { update_notification }
-            <p hidden={ (*progress_message).is_none() }>{ &*progress_message }</p>
+            <p hidden={ progress_message.is_none() }>{ &*progress_message }</p>
 
-            <div class="scrolling-list" hidden={ (*progress_message).is_some() }>
+            <div class="scrolling-list" style={ if progress_message.is_some() { "display:none" } else { "" } }>
                 { items }
             </div>
         </>
@@ -199,7 +199,7 @@ pub fn item(props: &ItemProps) -> Html {
     };
 
     let hide_remove = matches!(&state, State::NotInstalled(_));
-    
+
     let hide_start = match &state {
         State::NotInstalled(_) => true,
         _ => !props.can_start,
