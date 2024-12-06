@@ -2,6 +2,11 @@
 # yarn lockfile v1
 
 
+"@tauri-apps/api@^2.0.0":
+  version "2.1.1"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/api/-/api-2.1.1.tgz#77d4ddb683d31072de4e6a47c8613d9db011652b"
+  integrity sha512-fzUfFFKo4lknXGJq8qrCidkUcKcH2UHhfaaCNt4GzgzGaW2iS26uFOg4tS3H4P8D6ZEeUxtiD5z0nwFF0UN30A==
+
 "@tauri-apps/cli-darwin-arm64@2.1.0":
   version "2.1.0"
   resolved "https://registry.yarnpkg.com/@tauri-apps/cli-darwin-arm64/-/cli-darwin-arm64-2.1.0.tgz#e9b020d25bc3be1ba86a7e330c65f27c2438cb0f"
@@ -68,7 +73,9 @@
     "@tauri-apps/cli-win32-ia32-msvc" "2.1.0"
     "@tauri-apps/cli-win32-x64-msvc" "2.1.0"
 
-trunk@^1.1.0:
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/trunk/-/trunk-1.1.0.tgz#11a0404d2c5dbf366a6466404b47e5ececef5b21"
-  integrity sha512-lZE1euBOPW487ivU3u0SyIeJByNQsUoIz2H1RNylHW1m+HYDLTIDi+/r60RXBrDSzw+SJrEEiN5MeqPMaDdqWw==
+"@tauri-apps/plugin-updater@~2":
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/@tauri-apps/plugin-updater/-/plugin-updater-2.0.0.tgz#38cb3e735da28cd1726a3c0e13f032117e4db111"
+  integrity sha512-N0cl71g7RPr7zK2Fe5aoIwzw14NcdLcz7XMGFWZVjprsqgDRWoxbnUkknyCQMZthjhGkppCd/wN2MIsUz+eAhQ==
+  dependencies:
+    "@tauri-apps/api" "^2.0.0"

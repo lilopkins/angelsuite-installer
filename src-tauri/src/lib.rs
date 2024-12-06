@@ -5,10 +5,11 @@ use std::sync::Mutex;
 use std::{fs, io::Write};
 
 use install::Install;
-use manifest::{DownloadStrategy, Manifest, ManifestVersionOnly};
+use manifest::{DownloadStrategy, Manifest};
 use semver::Version;
 use serde::Serialize;
 use tauri::{Manager, Runtime};
+use tauri_plugin_updater::UpdaterExt;
 
 mod gzip;
 mod install;
@@ -79,11 +80,21 @@ pub struct ManifestLoadResultProduct {
 
 #[tauri::command]
 async fn load_manifest<R: Runtime>(
-    _app: tauri::AppHandle<R>,
+    app: tauri::AppHandle<R>,
     state: tauri::State<'_, AppData>,
     _window: tauri::Window<R>,
 ) -> Result<ManifestLoadResult, String> {
     let mut result = ManifestLoadResult::default();
+
+    result.installer_update_available = if let Ok(u) = app.updater() {
+        if let Ok(Some(update)) = u.check().await {
+            Some(update.version)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
 
     // Check if `installer.json` exists. If not, create it.
     let install_data = if let Ok(f) = fs::File::open(local_install_file()) {
@@ -126,33 +137,13 @@ async fn load_manifest<R: Runtime>(
         *state.install_data.lock().unwrap() = install_data;
         return Ok(result);
     }
-    let res = res
+    let body: Manifest = res
         .unwrap()
-        .text()
+        .json()
         .await
         .map_err(|_| "Failed to read manifest".to_string())?;
 
-    let body: Result<Manifest, _> = serde_json::from_str(&res);
-    if body.is_err() {
-        // Try to parse version only. If a new version is available, alert that only.
-        let body: ManifestVersionOnly =
-            serde_json::from_str(&res).map_err(|_| "Failed to parse manifest".to_string())?;
-        if semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap()
-            < *body.latest_installer_version()
-        {
-            result.installer_update_available = Some(body.latest_installer_version().to_string());
-            return Ok(result);
-        }
-    }
-
-    let body = body.unwrap();
     *state.manifest.lock().unwrap() = Some(body.clone());
-
-    // Check if installer needs updating and notify frontend
-    if semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap() < *body.latest_installer_version()
-    {
-        result.installer_update_available = Some(body.latest_installer_version().to_string());
-    }
 
     // Detect products to present to frontend, current install status and upgrade possibility and notify frontend
     for prod in body.products() {
@@ -366,6 +357,28 @@ fn start_app<R: Runtime>(
     Ok(())
 }
 
+#[tauri::command]
+async fn update_installer<R: Runtime>(app: tauri::AppHandle<R>, _window: tauri::Window<R>) -> tauri_plugin_updater::Result<()> {
+    let update = app.updater()?.check().await?.unwrap();
+    let mut downloaded = 0;
+
+    // alternatively we could also call update.download() and update.install() separately
+    update
+        .download_and_install(
+            |chunk_length, content_length| {
+                downloaded += chunk_length;
+                println!("downloaded {downloaded} from {content_length:?}");
+            },
+            || {
+                println!("download finished");
+            },
+        )
+        .await?;
+
+    println!("update installed");
+    app.restart();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -373,6 +386,7 @@ pub fn run() {
             app.manage(AppData::default());
             Ok(())
         })
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             load_manifest,
@@ -380,6 +394,7 @@ pub fn run() {
             install_app,
             remove_app,
             start_app,
+            update_installer,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
