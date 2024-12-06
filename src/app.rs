@@ -182,8 +182,8 @@ pub fn item(props: &ItemProps) -> Html {
     };
 
     let state_str = match &state {
-        State::InstalledLatest(v) => format!("Installed v{v}, latest"),
-        State::InstalledUpdate(v, l) => format!("Installed v{v}, v{l} available"),
+        State::InstalledLatest(v) => format!("Installed v{v} (latest)"),
+        State::InstalledUpdate(v, l) => format!("Installed v{v} (updatable to v{l})"),
         State::NotInstalled(l) => {
             if l == "0.0.0" || !has_os_match {
                 "Not available for your system".to_string()
