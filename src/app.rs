@@ -82,12 +82,17 @@ pub fn app() -> Html {
         })
     };
 
-    let update_notification = manifest_load_result.installer_update_available.clone().map(|v| html! {
-        <p class="update-notification">
-            { "An update to the installer is available. (version " }{ v } { ")" }
-            <button onclick={ onclick_update }>{ "Update and Restart" }</button>
-        </p>
-    });
+    let update_notification = manifest_load_result
+        .installer_update_available
+        .clone()
+        .map(|v| {
+            html! {
+                <p class="update-notification">
+                    { "An update to the installer is available. (version " }{ v } { ")" }
+                    <button onclick={ onclick_update }>{ "Update and Restart" }</button>
+                </p>
+            }
+        });
 
     let items: Vec<_> = manifest_load_result
         .products

@@ -358,7 +358,10 @@ fn start_app<R: Runtime>(
 }
 
 #[tauri::command]
-async fn update_installer<R: Runtime>(app: tauri::AppHandle<R>, _window: tauri::Window<R>) -> tauri_plugin_updater::Result<()> {
+async fn update_installer<R: Runtime>(
+    app: tauri::AppHandle<R>,
+    _window: tauri::Window<R>,
+) -> tauri_plugin_updater::Result<()> {
     let update = app.updater()?.check().await?.unwrap();
     let mut downloaded = 0;
 
