@@ -265,7 +265,7 @@ async fn install_app<R: Runtime>(
                 return Err("Download not available for this operating system".to_string());
             }
             let download = download.unwrap();
-            log::debug!("Download spec: {download:#?}");
+            log::debug!("Download spec: {download:?}");
 
             // Download file
             let req = reqwest::get(download.url())
