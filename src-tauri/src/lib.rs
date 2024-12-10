@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::{BufReader, Cursor};
 use std::path::PathBuf;
 use std::process::Command;
@@ -357,6 +358,16 @@ fn start_app<R: Runtime>(
     }
     let prod = prod.unwrap();
 
+    // Read .env
+    let mut env_map = HashMap::new();
+    if let Ok(iter) = dotenvy::dotenv_iter() {
+        for item in iter {
+            if let Ok((key, val)) = item {
+                env_map.insert(key, val);
+            }
+        }
+    }
+
     if let Some(exec_path) = prod.main_executable() {
         let canonical_path = fs::canonicalize(exec_path).map_err(|e| e.to_string())?;
         Command::new(canonical_path)
@@ -365,6 +376,7 @@ fn start_app<R: Runtime>(
                     .clone()
                     .unwrap_or(".".to_string()),
             )
+            .envs(env_map)
             .spawn()
             .map_err(|e| e.to_string())?;
     }
