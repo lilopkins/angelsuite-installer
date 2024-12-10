@@ -16,7 +16,7 @@ mod gzip;
 mod install;
 mod manifest;
 
-pub const MANIFEST_URL: &'static str = "https://gist.githubusercontent.com/lilopkins/a9a624367414e48f860f0fa0ef609c98/raw/manifest.json";
+pub const MANIFEST_URL: &str = "https://gist.githubusercontent.com/lilopkins/a9a624367414e48f860f0fa0ef609c98/raw/manifest.json";
 
 #[cfg(target_os = "windows")]
 pub fn local_install_file() -> PathBuf {
@@ -152,7 +152,7 @@ async fn load_manifest<R: Runtime>(
         result.products.push(ManifestLoadResultProduct {
             id: prod.id().clone(),
             name: prod.name().clone(),
-            local_version: install_prod.map(|p| p.version().clone()).flatten(),
+            local_version: install_prod.and_then(|p| p.version().clone()),
             remote_version: prod.latest_version(false).to_string(),
             remote_version_prerelease: prod.latest_version(true).to_string(),
             description: prod.description().clone(),
@@ -234,7 +234,13 @@ async fn install_app<R: Runtime>(
                     for file in removal.files() {
                         let mut path = install_directory.clone();
                         path.push(file);
-                        let _ = fs::remove_file(path);
+                        if let Ok(meta) = fs::symlink_metadata(&path) {
+                            if meta.is_dir() {
+                                let _ = fs::remove_dir_all(path);
+                            } else {
+                                let _ = fs::remove_file(path);
+                            }
+                        }
                     }
                 }
             }
@@ -263,7 +269,7 @@ async fn install_app<R: Runtime>(
                     path.push(name);
                     let mut f = fs::File::create(&path)
                         .map_err(|_| "Failed to create target file".to_string())?;
-                    f.write_all(&*req)
+                    f.write_all(&req)
                         .map_err(|_| "Failed to write data".to_string())?;
                     #[cfg(unix)]
                     {
@@ -361,10 +367,8 @@ fn start_app<R: Runtime>(
     // Read .env
     let mut env_map = HashMap::new();
     if let Ok(iter) = dotenvy::dotenv_iter() {
-        for item in iter {
-            if let Ok((key, val)) = item {
-                env_map.insert(key, val);
-            }
+        for (key, val) in iter.flatten() {
+            env_map.insert(key, val);
         }
     }
 

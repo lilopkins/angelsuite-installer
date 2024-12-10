@@ -34,10 +34,8 @@ impl Product {
         let mut latest_version = Version::new(0, 0, 0);
         for version in self.versions() {
             let v = version.version();
-            if allow_prerelease || v.pre.is_empty() {
-                if *v > latest_version {
-                    latest_version = v.clone();
-                }
+            if (allow_prerelease || v.pre.is_empty()) && *v > latest_version {
+                latest_version = v.clone();
             }
         }
         latest_version
