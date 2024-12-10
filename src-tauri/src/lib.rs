@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::{BufReader, Cursor};
 use std::path::PathBuf;
 use std::process::Command;
@@ -216,6 +217,20 @@ async fn install_app<R: Runtime>(
                     .iter()
                     .filter(|maybe_removal| maybe_removal.on_upgrade_from().matches(&v));
                 for removal in removals {
+                    if let Some(target_oses) = removal.on() {
+                        if cfg!(target_os = "windows")
+                            && !target_oses.contains(&"windows".to_string())
+                        {
+                            continue;
+                        }
+                        if cfg!(target_os = "macos") && !target_oses.contains(&"mac".to_string()) {
+                            continue;
+                        }
+                        if cfg!(target_os = "linux") && !target_oses.contains(&"linux".to_string())
+                        {
+                            continue;
+                        }
+                    }
                     for file in removal.files() {
                         let mut path = install_directory.clone();
                         path.push(file);
@@ -343,6 +358,16 @@ fn start_app<R: Runtime>(
     }
     let prod = prod.unwrap();
 
+    // Read .env
+    let mut env_map = HashMap::new();
+    if let Ok(iter) = dotenvy::dotenv_iter() {
+        for item in iter {
+            if let Ok((key, val)) = item {
+                env_map.insert(key, val);
+            }
+        }
+    }
+
     if let Some(exec_path) = prod.main_executable() {
         let canonical_path = fs::canonicalize(exec_path).map_err(|e| e.to_string())?;
         Command::new(canonical_path)
@@ -351,6 +376,7 @@ fn start_app<R: Runtime>(
                     .clone()
                     .unwrap_or(".".to_string()),
             )
+            .envs(env_map)
             .spawn()
             .map_err(|e| e.to_string())?;
     }

@@ -65,6 +65,8 @@ impl Product {
 pub struct Removals {
     /// Only remove files when upgrading from a version matching this requirement
     on_upgrade_from: VersionReq,
+    /// Only remove files from a particular OS
+    on: Option<Vec<String>>,
     /// List of files to delete
     files: Vec<String>,
 }
