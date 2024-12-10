@@ -88,7 +88,7 @@ pub fn app() -> Html {
         .map(|v| {
             html! {
                 <p class="update-notification">
-                    { "An update to the installer is available. (version " }{ v } { ")" }
+                    { "An update to the installer is available. (version " }{ v } { ") " }
                     <button onclick={ onclick_update }>{ "Update and Restart" }</button>
                 </p>
             }
