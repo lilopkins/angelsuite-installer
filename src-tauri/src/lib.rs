@@ -216,6 +216,20 @@ async fn install_app<R: Runtime>(
                     .iter()
                     .filter(|maybe_removal| maybe_removal.on_upgrade_from().matches(&v));
                 for removal in removals {
+                    if let Some(target_oses) = removal.on() {
+                        if cfg!(target_os = "windows")
+                            && !target_oses.contains(&"windows".to_string())
+                        {
+                            continue;
+                        }
+                        if cfg!(target_os = "macos") && !target_oses.contains(&"mac".to_string()) {
+                            continue;
+                        }
+                        if cfg!(target_os = "linux") && !target_oses.contains(&"linux".to_string())
+                        {
+                            continue;
+                        }
+                    }
                     for file in removal.files() {
                         let mut path = install_directory.clone();
                         path.push(file);
