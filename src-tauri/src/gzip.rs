@@ -29,9 +29,11 @@ pub fn extract_tar_gz<R: Read + Clone>(reader: R, output_dir: &Path) -> io::Resu
             }
         } else {
             // If we encounter a file, we can stop looking for a topmost directory
-            if path_str.starts_with(topmost_dir.as_ref().unwrap()) {
-                // This file is a child of the topmost.
-                continue;
+            if let Some(topmost_dir) = topmost_dir.as_ref() {
+                if path_str.starts_with(topmost_dir) {
+                    // This file is a child of the topmost.
+                    continue;
+                }
             }
             topmost_dir = None;
             break;

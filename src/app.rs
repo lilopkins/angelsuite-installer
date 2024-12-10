@@ -6,7 +6,10 @@ use yew::prelude::*;
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
-    async fn invoke(cmd: &str, args: JsValue) -> JsValue;
+    #[wasm_bindgen(catch)]
+    async fn invoke(cmd: &str, args: JsValue) -> Result<JsValue, JsValue>;
+    #[wasm_bindgen(js_namespace = ["window"])]
+    fn alert(s: &str);
 }
 
 #[derive(Deserialize, Default)]
@@ -50,8 +53,17 @@ pub fn app() -> Html {
         let update_manifest = update_manifest.clone();
         use_effect_with(update_manifest, |_| {
             spawn_local(async move {
-                let res = invoke("load_manifest", JsValue::null()).await;
-                manifest_load_result.set(serde_wasm_bindgen::from_value(res).unwrap());
+                match invoke("load_manifest", JsValue::null()).await {
+                    Ok(res) => {
+                        manifest_load_result.set(serde_wasm_bindgen::from_value(res).unwrap());
+                    }
+                    Err(e) => {
+                        alert(&format!(
+                            "{} Please try again later.",
+                            e.as_string().unwrap()
+                        ));
+                    }
+                }
             });
         });
     }
@@ -183,6 +195,7 @@ struct StartInstallUpgradeRemoveArgs {
 pub fn item(props: &ItemProps) -> Html {
     let id = use_state(|| props.id.clone());
     let allow_prereleases = use_state(|| props.allow_prerelease);
+    let install_error = use_state(String::new);
 
     let remote_version = if *allow_prereleases {
         &props.remote_version_prerelease
@@ -237,6 +250,7 @@ pub fn item(props: &ItemProps) -> Html {
     let onclick_install = {
         let id = id.clone();
         let cb = props.set_progress_message.clone();
+        let install_error = install_error.clone();
         Callback::from(move |e: MouseEvent| {
             e.prevent_default();
 
@@ -244,30 +258,41 @@ pub fn item(props: &ItemProps) -> Html {
 
             let id = id.clone();
             let cb = cb.clone();
+            let install_error = install_error.clone();
             spawn_local(async move {
                 let args = serde_wasm_bindgen::to_value(&StartInstallUpgradeRemoveArgs {
                     id: (*id).clone(),
                 })
                 .unwrap();
-                invoke("install_app", args).await;
-
-                cb.emit((None, true));
+                let result = invoke("install_app", args).await;
+                match result {
+                    Ok(_) => cb.emit((None, true)),
+                    Err(e) => {
+                        install_error.set(e.as_string().unwrap());
+                        cb.emit((None, false));
+                    }
+                }
             });
         })
     };
 
     let onclick_start = {
         let id = id.clone();
+        let install_error = install_error.clone();
         Callback::from(move |e: MouseEvent| {
             e.prevent_default();
 
             let id = id.clone();
+            let install_error = install_error.clone();
             spawn_local(async move {
                 let args = serde_wasm_bindgen::to_value(&StartInstallUpgradeRemoveArgs {
                     id: (*id).clone(),
                 })
                 .unwrap();
-                invoke("start_app", args).await;
+                let result = invoke("start_app", args).await;
+                if let Err(e) = result {
+                    install_error.set(e.as_string().unwrap());
+                }
             });
         })
     };
@@ -287,7 +312,9 @@ pub fn item(props: &ItemProps) -> Html {
                     id: (*id).clone(),
                 })
                 .unwrap();
-                invoke("remove_app", args).await;
+
+                // rationale: doesn't fail
+                invoke("remove_app", args).await.unwrap();
 
                 cb.emit((None, true));
             });
@@ -314,7 +341,8 @@ pub fn item(props: &ItemProps) -> Html {
                     allow_prerelease: *allow_prereleases,
                 })
                 .unwrap();
-                invoke("set_prerelease", args).await;
+                // rationale: Doesn't fail
+                invoke("set_prerelease", args).await.unwrap();
             });
         });
     }
@@ -328,6 +356,7 @@ pub fn item(props: &ItemProps) -> Html {
                 <input type="checkbox" name="allow_prerelease" onchange={ onchange_prerelease } checked={*allow_prereleases} />
                 { "Use Prerelease Versions" }
             </label>
+            <p>{ &*install_error }</p>
             <button class="item__install" onclick={ onclick_start } hidden={ hide_start }>{ "Start" }</button>
             <button class="item__install" onclick={ onclick_install } hidden={ hide_install_upgrade }>{ install_uprade_txt }</button>
             <button class="item__install" onclick={ onclick_remove } hidden={ hide_remove }>{ "Remove" }</button>
