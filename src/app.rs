@@ -56,9 +56,12 @@ pub fn app() -> Html {
                 match invoke("load_manifest", JsValue::null()).await {
                     Ok(res) => {
                         manifest_load_result.set(serde_wasm_bindgen::from_value(res).unwrap());
-                    },
+                    }
                     Err(e) => {
-                        alert(&format!("{} Please try again later.", e.as_string().unwrap()));
+                        alert(&format!(
+                            "{} Please try again later.",
+                            e.as_string().unwrap()
+                        ));
                     }
                 }
             });
@@ -267,7 +270,7 @@ pub fn item(props: &ItemProps) -> Html {
                     Err(e) => {
                         install_error.set(e.as_string().unwrap());
                         cb.emit((None, false));
-                    },
+                    }
                 }
             });
         })
