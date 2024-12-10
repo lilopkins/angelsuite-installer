@@ -69,12 +69,15 @@ dependencies = [
 
 [[package]]
 name = "angelsuite-installer"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
+ "chrono",
  "dirs",
  "dotenvy",
+ "fern",
  "flate2",
  "getset",
+ "log",
  "reqwest",
  "semver",
  "serde",
@@ -89,7 +92,7 @@ dependencies = [
 
 [[package]]
 name = "angelsuite-installer-ui"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",
@@ -432,8 +435,10 @@ checksum = "7e36cc9d416881d2e24f9a963be5fb1cd90966419ac844274161d10488b3e825"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
+ "js-sys",
  "num-traits",
  "serde",
+ "wasm-bindgen",
  "windows-targets 0.52.6",
 ]
 
@@ -921,6 +926,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e6853b52649d4ac5c0bd02320cddc5ba956bdb407c4b75a2c6b75bf51500f8c"
 dependencies = [
  "simd-adler32",
+]
+
+[[package]]
+name = "fern"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69ff9c9d5fb3e6da8ac2f77ab76fe7e8087d512ce095200f8f29ac5b656cf6dc"
+dependencies = [
+ "log",
 ]
 
 [[package]]

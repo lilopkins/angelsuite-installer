@@ -69,6 +69,7 @@ pub fn app() -> Html {
         })
     };
 
+    #[allow(unused)]
     let onclick_update = {
         let cb = cb_set_progress_message.clone();
         Callback::from(move |e: MouseEvent| {
@@ -88,8 +89,9 @@ pub fn app() -> Html {
         .map(|v| {
             html! {
                 <p class="update-notification">
-                    { "An update to the installer is available. (version " }{ v } { ")" }
-                    <button onclick={ onclick_update }>{ "Update and Restart" }</button>
+                    { "An update to the installer is available. (version " }{ v } { ") " }
+                    // ! Update button is temporarily disabled as it doens't work on most distributions
+                    // <button onclick={ onclick_update }>{ "Update and Restart" }</button>
                 </p>
             }
         });
@@ -122,7 +124,7 @@ pub fn app() -> Html {
                 <img src="/public/icon.png" aria-hidden="true" alt="" />
                 <h1>{"AngelSuite"}</h1>
             </div>
-            { update_notification }
+            <div style={ if progress_message.is_some() { "display:none" } else { "" } }>{ update_notification }</div>
             <p hidden={ progress_message.is_none() }>{ &*progress_message }</p>
 
             <div class="scrolling-list" style={ if progress_message.is_some() { "display:none" } else { "" } }>

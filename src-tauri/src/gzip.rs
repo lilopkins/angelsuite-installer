@@ -48,7 +48,7 @@ pub fn extract_tar_gz<R: Read + Clone>(reader: R, output_dir: &Path) -> io::Resu
 
         // If we have a topmost directory, strip it from the path
         if let Some(ref top_dir) = topmost_dir {
-            if let Some(stripped_path) = path.strip_prefix(top_dir).ok() {
+            if let Ok(stripped_path) = path.strip_prefix(top_dir) {
                 let output_path = output_dir.join(stripped_path);
                 // Create parent directories if necessary
                 if let Some(parent) = output_path.parent() {

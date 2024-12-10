@@ -16,7 +16,7 @@ mod gzip;
 mod install;
 mod manifest;
 
-pub const MANIFEST_URL: &'static str = "https://gist.githubusercontent.com/lilopkins/a9a624367414e48f860f0fa0ef609c98/raw/manifest.json";
+pub const MANIFEST_URL: &str = "https://gist.githubusercontent.com/lilopkins/a9a624367414e48f860f0fa0ef609c98/raw/manifest.json";
 
 #[cfg(target_os = "windows")]
 pub fn local_install_file() -> PathBuf {
@@ -85,10 +85,12 @@ async fn load_manifest<R: Runtime>(
     state: tauri::State<'_, AppData>,
     _window: tauri::Window<R>,
 ) -> Result<ManifestLoadResult, String> {
+    log::debug!("Loading manifest...");
     let mut result = ManifestLoadResult::default();
 
     result.installer_update_available = if let Ok(u) = app.updater() {
         if let Ok(Some(update)) = u.check().await {
+            log::info!("Installer update available ({})!", update.version);
             Some(update.version)
         } else {
             None
@@ -103,6 +105,7 @@ async fn load_manifest<R: Runtime>(
             serde_json::from_reader(BufReader::new(f)).expect("installer.json is invalid on disk");
         i
     } else {
+        log::debug!("Creating installer JSON on disk.");
         Install::default()
             .save()
             .expect("couldn't produce default installer.json");
@@ -115,6 +118,7 @@ async fn load_manifest<R: Runtime>(
     let res = reqwest::get(MANIFEST_URL).await;
 
     if res.is_err() || std::env::var("ANGEL_WORK_OFFLINE") == Ok("1".to_string()) {
+        log::info!("Working offline.");
         // Work offline
         // Load installed products
         for (prod_id, prod) in install_data.products() {
@@ -145,6 +149,7 @@ async fn load_manifest<R: Runtime>(
         .map_err(|_| "Failed to read manifest".to_string())?;
 
     *state.manifest.lock().unwrap() = Some(body.clone());
+    log::debug!("Fetched manifest.");
 
     // Detect products to present to frontend, current install status and upgrade possibility and notify frontend
     for prod in body.products() {
@@ -152,7 +157,7 @@ async fn load_manifest<R: Runtime>(
         result.products.push(ManifestLoadResultProduct {
             id: prod.id().clone(),
             name: prod.name().clone(),
-            local_version: install_prod.map(|p| p.version().clone()).flatten(),
+            local_version: install_prod.and_then(|p| p.version().clone()),
             remote_version: prod.latest_version(false).to_string(),
             remote_version_prerelease: prod.latest_version(true).to_string(),
             description: prod.description().clone(),
@@ -179,6 +184,7 @@ fn set_prerelease<R: Runtime>(
     allow_prerelease: bool,
 ) -> Result<(), String> {
     let mut install_data = state.install_data.lock().unwrap();
+    log::debug!("Changing prerelease to {allow_prerelease} for app {id}.");
     let prod = install_data.get_mut_product_or_default(id);
     prod.set_use_prerelease(allow_prerelease);
     install_data.save().unwrap();
@@ -192,6 +198,7 @@ async fn install_app<R: Runtime>(
     _window: tauri::Window<R>,
     id: String,
 ) -> Result<(), String> {
+    log::info!("Installing app {id}.");
     let mut install = state.install_data.lock().unwrap().clone();
     let mf = {
         let mf_mutex = state.manifest.lock().unwrap();
@@ -202,6 +209,7 @@ async fn install_app<R: Runtime>(
             let mut install_directory = local_install_dir();
             install_directory.push(prod.install_directory());
             let install_directory = install_directory;
+            log::info!("Installing to {install_directory:?}");
 
             let prod_install = install.get_mut_product_or_default(id);
             let current_version = prod_install
@@ -209,6 +217,7 @@ async fn install_app<R: Runtime>(
                 .clone()
                 .map(|v| Version::parse(&v).unwrap());
             let version = prod.latest_version(*prod_install.use_prerelease());
+            log::debug!("Local version {current_version:?}, remote version: {version}");
 
             // Determine any removals
             if let Some(v) = current_version {
@@ -231,10 +240,19 @@ async fn install_app<R: Runtime>(
                             continue;
                         }
                     }
+                    log::debug!("A removal applies to this install!");
                     for file in removal.files() {
                         let mut path = install_directory.clone();
                         path.push(file);
-                        let _ = fs::remove_file(path);
+                        if let Ok(meta) = fs::symlink_metadata(&path) {
+                            if meta.is_dir() {
+                                log::debug!("Removing directory {path:?}");
+                                let _ = fs::remove_dir_all(path);
+                            } else {
+                                log::debug!("Removing file {path:?}");
+                                let _ = fs::remove_file(path);
+                            }
+                        }
                     }
                 }
             }
@@ -247,6 +265,7 @@ async fn install_app<R: Runtime>(
                 return Err("Download not available for this operating system".to_string());
             }
             let download = download.unwrap();
+            log::debug!("Download spec: {download:#?}");
 
             // Download file
             let req = reqwest::get(download.url())
@@ -255,6 +274,7 @@ async fn install_app<R: Runtime>(
                 .bytes()
                 .await
                 .map_err(|_| "Failed to download data".to_string())?;
+            log::debug!("File downloaded");
 
             // Evaluate strategy
             match download.strategy() {
@@ -263,13 +283,14 @@ async fn install_app<R: Runtime>(
                     path.push(name);
                     let mut f = fs::File::create(&path)
                         .map_err(|_| "Failed to create target file".to_string())?;
-                    f.write_all(&*req)
+                    f.write_all(&req)
                         .map_err(|_| "Failed to write data".to_string())?;
                     #[cfg(unix)]
                     {
                         use std::os::unix::fs::PermissionsExt;
 
                         if *chmod {
+                            log::debug!("chmod'ing file");
                             let mut perms = fs::metadata(&path)
                                 .map_err(|_| "Failed to set permissions".to_string())?
                                 .permissions();
@@ -289,6 +310,7 @@ async fn install_app<R: Runtime>(
                 }
             }
 
+            log::info!("Install complete, saving data");
             prod_install.set_name(prod.name().clone());
             prod_install.set_description(prod.description().clone());
             prod_install.set_version(Some(version.to_string()));
@@ -305,6 +327,7 @@ async fn install_app<R: Runtime>(
                 .save()
                 .expect("failed to update installer.json after uninstalling");
             *state.install_data.lock().unwrap() = install;
+            log::info!("Done");
             return Ok(());
         }
     }
@@ -328,8 +351,11 @@ async fn remove_app<R: Runtime>(
             install_directory.push(prod.install_directory());
             let install_directory = install_directory;
 
+            log::info!("Removing {install_directory:?}");
             fs::remove_dir_all(install_directory)
                 .expect("failed to delete a directory managed by the installer");
+
+            log::info!("Removing from local manifest");
             let prod_install = install.get_mut_product_or_default(id);
             prod_install.set_version(None);
             prod_install.set_main_executable(None);
@@ -337,6 +363,8 @@ async fn remove_app<R: Runtime>(
             install
                 .save()
                 .expect("failed to update installer.json after uninstalling");
+
+            log::info!("Done");
             return Ok(());
         }
     }
@@ -361,15 +389,14 @@ fn start_app<R: Runtime>(
     // Read .env
     let mut env_map = HashMap::new();
     if let Ok(iter) = dotenvy::dotenv_iter() {
-        for item in iter {
-            if let Ok((key, val)) = item {
-                env_map.insert(key, val);
-            }
+        for (key, val) in iter.flatten() {
+            env_map.insert(key, val);
         }
     }
 
     if let Some(exec_path) = prod.main_executable() {
         let canonical_path = fs::canonicalize(exec_path).map_err(|e| e.to_string())?;
+        log::debug!("Starting {canonical_path:?} with environment variables: {env_map:?}");
         Command::new(canonical_path)
             .current_dir(
                 prod.execute_working_directory()
