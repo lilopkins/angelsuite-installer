@@ -69,6 +69,7 @@ pub fn app() -> Html {
         })
     };
 
+    #[allow(unused)]
     let onclick_update = {
         let cb = cb_set_progress_message.clone();
         Callback::from(move |e: MouseEvent| {
@@ -89,7 +90,8 @@ pub fn app() -> Html {
             html! {
                 <p class="update-notification">
                     { "An update to the installer is available. (version " }{ v } { ") " }
-                    <button onclick={ onclick_update }>{ "Update and Restart" }</button>
+                    // ! Update button is temporarily disabled as it doens't work on most distributions
+                    // <button onclick={ onclick_update }>{ "Update and Restart" }</button>
                 </p>
             }
         });
