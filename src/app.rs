@@ -122,7 +122,7 @@ pub fn app() -> Html {
                 <img src="/public/icon.png" aria-hidden="true" alt="" />
                 <h1>{"AngelSuite"}</h1>
             </div>
-            { update_notification }
+            <div style={ if progress_message.is_some() { "display:none" } else { "" } }>{ update_notification }</div>
             <p hidden={ progress_message.is_none() }>{ &*progress_message }</p>
 
             <div class="scrolling-list" style={ if progress_message.is_some() { "display:none" } else { "" } }>
