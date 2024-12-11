@@ -270,10 +270,10 @@ async fn install_app<R: Runtime>(
             // Download file
             let req = reqwest::get(download.url())
                 .await
-                .map_err(|_| "Failed to get manifest".to_string())?
+                .map_err(|e| format!("Failed to get manifest: {e}"))?
                 .bytes()
                 .await
-                .map_err(|_| "Failed to download data".to_string())?;
+                .map_err(|e| format!("Failed to download data: {e}"))?;
             log::debug!("File downloaded");
 
             // Evaluate strategy
@@ -282,9 +282,9 @@ async fn install_app<R: Runtime>(
                     let mut path = install_directory.clone();
                     path.push(name);
                     let mut f = fs::File::create(&path)
-                        .map_err(|_| "Failed to create target file".to_string())?;
+                        .map_err(|e| format!("Failed to create target file: {e}"))?;
                     f.write_all(&req)
-                        .map_err(|_| "Failed to write data".to_string())?;
+                        .map_err(|e| format!("Failed to write data: {e}"))?;
                     #[cfg(unix)]
                     {
                         use std::os::unix::fs::PermissionsExt;
@@ -292,21 +292,21 @@ async fn install_app<R: Runtime>(
                         if *chmod {
                             log::debug!("chmod'ing file");
                             let mut perms = fs::metadata(&path)
-                                .map_err(|_| "Failed to set permissions".to_string())?
+                                .map_err(|e| format!("Failed to set permissions: {e}"))?
                                 .permissions();
                             perms.set_mode(perms.mode() | 0o100);
                             fs::set_permissions(path, perms)
-                                .map_err(|_| "Failed to set permissions".to_string())?;
+                                .map_err(|e| format!("Failed to set permissions: {e}"))?;
                         }
                     }
                 }
                 DownloadStrategy::ZipFile => {
                     zip_extract::extract(Cursor::new(req), &install_directory, true)
-                        .map_err(|_| "Failed to extract data".to_string())?;
+                        .map_err(|e| format!("Failed to extract data: {e}"))?;
                 }
                 DownloadStrategy::GzippedTarball => {
                     gzip::extract_tar_gz(Cursor::new(req), &install_directory)
-                        .map_err(|_| "Failed to extract data".to_string())?;
+                        .map_err(|e| format!("Failed to extract data: {e}"))?;
                 }
             }
 

@@ -356,7 +356,7 @@ pub fn item(props: &ItemProps) -> Html {
                 <input type="checkbox" name="allow_prerelease" onchange={ onchange_prerelease } checked={*allow_prereleases} />
                 { "Use Prerelease Versions" }
             </label>
-            <p>{ &*install_error }</p>
+            <p style="color: red;">{ &*install_error }</p>
             <button class="item__install" onclick={ onclick_start } hidden={ hide_start }>{ "Start" }</button>
             <button class="item__install" onclick={ onclick_install } hidden={ hide_install_upgrade }>{ install_uprade_txt }</button>
             <button class="item__install" onclick={ onclick_remove } hidden={ hide_remove }>{ "Remove" }</button>
