@@ -33,6 +33,7 @@ dotenvy = "0.15.7"
 fern = "0.7.0"
 log = "0.4.22"
 chrono = "0.4.39"
+tempfile = "3.14.0"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
