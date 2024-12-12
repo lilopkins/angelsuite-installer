@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::{BufReader, Cursor};
+use std::io::{BufReader, BufWriter};
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Mutex;
@@ -267,24 +267,40 @@ async fn install_app<R: Runtime>(
             let download = download.unwrap();
             log::debug!("Download spec: {download:?}");
 
-            // Download file
-            let req = reqwest::get(download.url())
+            // Download to temporary file (via chunks)
+            let tempdir = tempfile::tempdir().unwrap();
+            let mut tempfile = tempdir.path().to_path_buf();
+            tempfile.push("data");
+            let mut req = reqwest::get(download.url())
                 .await
-                .map_err(|e| format!("Failed to get manifest: {e}"))?
-                .bytes()
-                .await
-                .map_err(|e| format!("Failed to download data: {e}"))?;
-            log::debug!("File downloaded");
+                .map_err(|e| format!("Failed to get data: {e}"))?;
+
+            {
+                let mut writer = BufWriter::new(
+                    fs::File::create(&tempfile)
+                        .map_err(|e| format!("Failed to create temporary file: {e}"))?,
+                );
+                while let Some(data) = req
+                    .chunk()
+                    .await
+                    .map_err(|e| format!("Failed to get data: {e}"))?
+                {
+                    writer
+                        .write_all(&data)
+                        .map_err(|e| format!("Failed to write data: {e}"))?;
+                }
+                log::debug!("File downloaded");
+            }
 
             // Evaluate strategy
             match download.strategy() {
                 DownloadStrategy::File { name, chmod } => {
                     let mut path = install_directory.clone();
                     path.push(name);
-                    let mut f = fs::File::create(&path)
+
+                    fs::copy(tempfile, &path)
                         .map_err(|e| format!("Failed to create target file: {e}"))?;
-                    f.write_all(&req)
-                        .map_err(|e| format!("Failed to write data: {e}"))?;
+
                     #[cfg(unix)]
                     {
                         use std::os::unix::fs::PermissionsExt;
@@ -301,11 +317,15 @@ async fn install_app<R: Runtime>(
                     }
                 }
                 DownloadStrategy::ZipFile => {
-                    zip_extract::extract(Cursor::new(req), &install_directory, true)
+                    let reader = BufReader::new(
+                        fs::File::open(&tempfile)
+                            .map_err(|e| format!("Failed to open temporary file: {e}"))?,
+                    );
+                    zip_extract::extract(reader, &install_directory, true)
                         .map_err(|e| format!("Failed to extract data: {e}"))?;
                 }
                 DownloadStrategy::GzippedTarball => {
-                    gzip::extract_tar_gz(Cursor::new(req), &install_directory)
+                    gzip::extract_tar_gz(tempfile, &install_directory)
                         .map_err(|e| format!("Failed to extract data: {e}"))?;
                 }
             }
@@ -352,8 +372,10 @@ async fn remove_app<R: Runtime>(
             let install_directory = install_directory;
 
             log::info!("Removing {install_directory:?}");
-            fs::remove_dir_all(install_directory)
-                .expect("failed to delete a directory managed by the installer");
+            if let Err(e) = fs::remove_dir_all(install_directory) {
+                // We can ignore this as it may just not exist.
+                log::warn!("Failed to delete directory: {e}");
+            }
 
             log::info!("Removing from local manifest");
             let prod_install = install.get_mut_product_or_default(id);

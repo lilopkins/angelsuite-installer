@@ -1,6 +1,6 @@
 [package]
 name = "angelsuite-installer"
-version = "0.5.3"
+version.workspace = true
 description = "An installer utility for managing Angelsuite tools."
 authors = ["Lily Hopkins <lily@hpkns.uk>"]
 edition = "2021"
@@ -33,6 +33,7 @@ dotenvy = "0.15.7"
 fern = "0.7.0"
 log = "0.4.22"
 chrono = "0.4.39"
+tempfile = "3.14.0"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

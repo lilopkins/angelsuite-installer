@@ -69,7 +69,7 @@ dependencies = [
 
 [[package]]
 name = "angelsuite-installer"
-version = "0.5.3"
+version = "0.5.4"
 dependencies = [
  "chrono",
  "dirs",
@@ -87,12 +87,13 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-shell",
  "tauri-plugin-updater",
+ "tempfile",
  "zip-extract",
 ]
 
 [[package]]
 name = "angelsuite-installer-ui"
-version = "0.5.3"
+version = "0.5.4"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",
