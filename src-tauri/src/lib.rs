@@ -31,6 +31,18 @@ pub fn local_install_file() -> PathBuf {
 }
 
 #[cfg(target_os = "windows")]
+pub fn local_environment_file() -> PathBuf {
+    PathBuf::from("./.env")
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+pub fn local_environment_file() -> PathBuf {
+    let mut path = dirs::config_dir().unwrap();
+    path.push("angelsuite.env");
+    path
+}
+
+#[cfg(target_os = "windows")]
 pub fn local_install_dir() -> PathBuf {
     PathBuf::from(".")
 }
@@ -410,7 +422,7 @@ fn start_app<R: Runtime>(
 
     // Read .env
     let mut env_map = HashMap::new();
-    if let Ok(iter) = dotenvy::dotenv_iter() {
+    if let Ok(iter) = dotenvy::from_path_iter(local_environment_file()) {
         for (key, val) in iter.flatten() {
             env_map.insert(key, val);
         }

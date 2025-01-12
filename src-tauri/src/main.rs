@@ -12,7 +12,9 @@ fn main() {
                 message
             ))
         })
-        .level(log::LevelFilter::Info)
+        //.level(log::LevelFilter::Info)
+        // Additional logging to diagnose #15
+        .level(log::LevelFilter::Trace)
         .level_for("angelsuite_installer", log::LevelFilter::Debug)
         .level_for("angelsuite_installer_lib", log::LevelFilter::Debug)
         .chain(std::io::stdout())

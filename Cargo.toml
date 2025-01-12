@@ -1,7 +1,11 @@
 [package]
 name = "angelsuite-installer-ui"
 version.workspace = true
+authors.workspace = true
+description.workspace = true
 edition = "2021"
+publish.workspace = true
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
@@ -18,4 +22,8 @@ console_error_panic_hook = "0.1.7"
 members = ["src-tauri"]
 
 [workspace.package]
-version = "0.5.4"
+version = "0.5.5"
+publish = false
+license = "GPL-3.0"
+authors = ["Lily Hopkins <lily@hpkns.uk>"]
+description = "An installer utility for managing Angelsuite tools."

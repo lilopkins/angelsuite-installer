@@ -1,9 +1,11 @@
 [package]
 name = "angelsuite-installer"
 version.workspace = true
-description = "An installer utility for managing Angelsuite tools."
-authors = ["Lily Hopkins <lily@hpkns.uk>"]
+description.workspace = true
+authors.workspace = true
 edition = "2021"
+publish.workspace = true
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
