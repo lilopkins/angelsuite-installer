@@ -208,7 +208,8 @@ pub fn item(props: &ItemProps) -> Html {
         props.has_os_match
     };
     let state = if let Some(local_version) = props.local_version.as_ref() {
-        if local_version == remote_version || local_version != "0.0.0" && remote_version == "0.0.0" {
+        if local_version == remote_version || local_version != "0.0.0" && remote_version == "0.0.0"
+        {
             State::InstalledLatest(local_version.clone())
         } else {
             State::InstalledUpdate(local_version.clone(), remote_version.clone())
