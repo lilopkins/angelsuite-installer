@@ -1,45 +1,45 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "AngelSuite",
-  "version": "0.5.5",
-  "identifier": "uk.hpkns.angelsuite.Installer",
-  "build": {
-    "beforeDevCommand": "trunk serve",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "trunk build",
-    "frontendDist": "../dist"
-  },
-  "app": {
-    "withGlobalTauri": true,
-    "windows": [
-      {
-        "title": "AngelSuite",
-        "width": 800,
-        "height": 600
-      }
-    ],
-    "security": {
-      "csp": null
+    "$schema": "https://schema.tauri.app/config/2",
+    "productName": "AngelSuite",
+    "version": "0.5.6",
+    "identifier": "uk.hpkns.angelsuite.Installer",
+    "build": {
+        "beforeDevCommand": "trunk serve",
+        "devUrl": "http://localhost:1420",
+        "beforeBuildCommand": "trunk build",
+        "frontendDist": "../dist"
+    },
+    "app": {
+        "withGlobalTauri": true,
+        "windows": [
+            {
+                "title": "AngelSuite",
+                "width": 800,
+                "height": 600
+            }
+        ],
+        "security": {
+            "csp": null
+        }
+    },
+    "bundle": {
+        "active": true,
+        "createUpdaterArtifacts": true,
+        "targets": "all",
+        "icon": [
+            "icons/32x32.png",
+            "icons/128x128.png",
+            "icons/128x128@2x.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+        ]
+    },
+    "plugins": {
+        "updater": {
+            "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJFMTAxMDA3RTExNEQxMDcKUldRSDBSVGhCeEFRTGhlSHVlT2hYNGJYNW9veStQcm41RmV6UDNCRlppNmNqcXpXek9FYU9tQ0QK",
+            "endpoints": [
+                "https://github.com/lilopkins/angelsuite-installer/releases/latest/download/latest.json"
+            ]
+        }
     }
-  },
-  "bundle": {
-    "active": true,
-    "createUpdaterArtifacts": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ]
-  },
-  "plugins": {
-    "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJFMTAxMDA3RTExNEQxMDcKUldRSDBSVGhCeEFRTGhlSHVlT2hYNGJYNW9veStQcm41RmV6UDNCRlppNmNqcXpXek9FYU9tQ0QK",
-      "endpoints": [
-        "https://github.com/lilopkins/angelsuite-installer/releases/latest/download/latest.json"
-      ]
-    }
-  }
 }
