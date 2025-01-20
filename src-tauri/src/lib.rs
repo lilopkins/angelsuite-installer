@@ -286,6 +286,7 @@ async fn install_app<R: Runtime>(
             let mut req = reqwest::get(download.url())
                 .await
                 .map_err(|e| format!("Failed to get data: {e}"))?;
+            log::debug!("download response: {req:?}");
 
             {
                 let mut writer = BufWriter::new(
