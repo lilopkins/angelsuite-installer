@@ -2,4 +2,4 @@
 /target/
 /node_modules
 installer.json
-angelsuite-installer.log
+angelsuite-installer.log*
