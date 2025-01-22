@@ -97,12 +97,12 @@ async fn load_manifest<R: Runtime>(
     state: tauri::State<'_, AppData>,
     _window: tauri::Window<R>,
 ) -> Result<ManifestLoadResult, String> {
-    log::debug!("Loading manifest...");
+    tracing::debug!("Loading manifest...");
     let mut result = ManifestLoadResult::default();
 
     result.installer_update_available = if let Ok(u) = app.updater() {
         if let Ok(Some(update)) = u.check().await {
-            log::info!("Installer update available ({})!", update.version);
+            tracing::info!("Installer update available ({})!", update.version);
             Some(update.version)
         } else {
             None
@@ -117,7 +117,7 @@ async fn load_manifest<R: Runtime>(
             serde_json::from_reader(BufReader::new(f)).expect("installer.json is invalid on disk");
         i
     } else {
-        log::debug!("Creating installer JSON on disk.");
+        tracing::debug!("Creating installer JSON on disk.");
         Install::default()
             .save()
             .expect("couldn't produce default installer.json");
@@ -130,7 +130,7 @@ async fn load_manifest<R: Runtime>(
     let res = reqwest::get(MANIFEST_URL).await;
 
     if res.is_err() || std::env::var("ANGEL_WORK_OFFLINE") == Ok("1".to_string()) {
-        log::info!("Working offline.");
+        tracing::info!("Working offline.");
         // Work offline
         // Load installed products
         for (prod_id, prod) in install_data.products() {
@@ -161,7 +161,7 @@ async fn load_manifest<R: Runtime>(
         .map_err(|_| "Failed to read manifest".to_string())?;
 
     *state.manifest.lock().unwrap() = Some(body.clone());
-    log::debug!("Fetched manifest.");
+    tracing::debug!("Fetched manifest.");
 
     // Detect products to present to frontend, current install status and upgrade possibility and notify frontend
     for prod in body.products() {
@@ -196,7 +196,7 @@ fn set_prerelease<R: Runtime>(
     allow_prerelease: bool,
 ) -> Result<(), String> {
     let mut install_data = state.install_data.lock().unwrap();
-    log::debug!("Changing prerelease to {allow_prerelease} for app {id}.");
+    tracing::debug!("Changing prerelease to {allow_prerelease} for app {id}.");
     let prod = install_data.get_mut_product_or_default(id);
     prod.set_use_prerelease(allow_prerelease);
     install_data.save().unwrap();
@@ -210,7 +210,7 @@ async fn install_app<R: Runtime>(
     _window: tauri::Window<R>,
     id: String,
 ) -> Result<(), String> {
-    log::info!("Installing app {id}.");
+    tracing::info!("Installing app {id}.");
     let mut install = state.install_data.lock().unwrap().clone();
     let mf = {
         let mf_mutex = state.manifest.lock().unwrap();
@@ -221,7 +221,7 @@ async fn install_app<R: Runtime>(
             let mut install_directory = local_install_dir();
             install_directory.push(prod.install_directory());
             let install_directory = install_directory;
-            log::info!("Installing to {install_directory:?}");
+            tracing::info!("Installing to {install_directory:?}");
 
             let prod_install = install.get_mut_product_or_default(id);
             let current_version = prod_install
@@ -229,7 +229,7 @@ async fn install_app<R: Runtime>(
                 .clone()
                 .map(|v| Version::parse(&v).unwrap());
             let version = prod.latest_version(*prod_install.use_prerelease());
-            log::debug!("Local version {current_version:?}, remote version: {version}");
+            tracing::debug!("Local version {current_version:?}, remote version: {version}");
 
             // Determine any removals
             if let Some(v) = current_version {
@@ -252,16 +252,16 @@ async fn install_app<R: Runtime>(
                             continue;
                         }
                     }
-                    log::debug!("A removal applies to this install!");
+                    tracing::debug!("A removal applies to this install!");
                     for file in removal.files() {
                         let mut path = install_directory.clone();
                         path.push(file);
                         if let Ok(meta) = fs::symlink_metadata(&path) {
                             if meta.is_dir() {
-                                log::debug!("Removing directory {path:?}");
+                                tracing::debug!("Removing directory {path:?}");
                                 let _ = fs::remove_dir_all(path);
                             } else {
-                                log::debug!("Removing file {path:?}");
+                                tracing::debug!("Removing file {path:?}");
                                 let _ = fs::remove_file(path);
                             }
                         }
@@ -277,7 +277,7 @@ async fn install_app<R: Runtime>(
                 return Err("Download not available for this operating system".to_string());
             }
             let download = download.unwrap();
-            log::debug!("Download spec: {download:?}");
+            tracing::debug!("Download spec: {download:?}");
 
             // Download to temporary file (via chunks)
             let tempdir = tempfile::tempdir().unwrap();
@@ -286,7 +286,7 @@ async fn install_app<R: Runtime>(
             let mut req = reqwest::get(download.url())
                 .await
                 .map_err(|e| format!("Failed to get data: {e}"))?;
-            log::debug!("download response: {req:?}");
+            tracing::debug!("download response: {req:?}");
 
             {
                 let mut writer = BufWriter::new(
@@ -302,7 +302,7 @@ async fn install_app<R: Runtime>(
                         .write_all(&data)
                         .map_err(|e| format!("Failed to write data: {e}"))?;
                 }
-                log::debug!("File downloaded");
+                tracing::debug!("File downloaded");
             }
 
             // Evaluate strategy
@@ -319,7 +319,7 @@ async fn install_app<R: Runtime>(
                         use std::os::unix::fs::PermissionsExt;
 
                         if *chmod {
-                            log::debug!("chmod'ing file");
+                            tracing::debug!("chmod'ing file");
                             let mut perms = fs::metadata(&path)
                                 .map_err(|e| format!("Failed to set permissions: {e}"))?
                                 .permissions();
@@ -343,7 +343,7 @@ async fn install_app<R: Runtime>(
                 }
             }
 
-            log::info!("Install complete, saving data");
+            tracing::info!("Install complete, saving data");
             prod_install.set_name(prod.name().clone());
             prod_install.set_description(prod.description().clone());
             prod_install.set_version(Some(version.to_string()));
@@ -360,7 +360,7 @@ async fn install_app<R: Runtime>(
                 .save()
                 .expect("failed to update installer.json after uninstalling");
             *state.install_data.lock().unwrap() = install;
-            log::info!("Done");
+            tracing::info!("Done");
             return Ok(());
         }
     }
@@ -384,13 +384,13 @@ async fn remove_app<R: Runtime>(
             install_directory.push(prod.install_directory());
             let install_directory = install_directory;
 
-            log::info!("Removing {install_directory:?}");
+            tracing::info!("Removing {install_directory:?}");
             if let Err(e) = fs::remove_dir_all(install_directory) {
                 // We can ignore this as it may just not exist.
-                log::warn!("Failed to delete directory: {e}");
+                tracing::warn!("Failed to delete directory: {e}");
             }
 
-            log::info!("Removing from local manifest");
+            tracing::info!("Removing from local manifest");
             let prod_install = install.get_mut_product_or_default(id);
             prod_install.set_version(None);
             prod_install.set_main_executable(None);
@@ -399,7 +399,7 @@ async fn remove_app<R: Runtime>(
                 .save()
                 .expect("failed to update installer.json after uninstalling");
 
-            log::info!("Done");
+            tracing::info!("Done");
             return Ok(());
         }
     }
@@ -431,7 +431,7 @@ fn start_app<R: Runtime>(
 
     if let Some(exec_path) = prod.main_executable() {
         let canonical_path = fs::canonicalize(exec_path).map_err(|e| e.to_string())?;
-        log::debug!("Starting {canonical_path:?} with environment variables: {env_map:?}");
+        tracing::debug!("Starting {canonical_path:?} with environment variables: {env_map:?}");
         Command::new(canonical_path)
             .current_dir(
                 prod.execute_working_directory()
