@@ -3,8 +3,8 @@
 
 use tracing_subscriber_multi::*;
 
-use std::{env, fs, sync::Mutex};
 use std::path::PathBuf;
+use std::{env, fs, sync::Mutex};
 
 #[cfg(target_os = "windows")]
 pub fn local_log_dir() -> PathBuf {
