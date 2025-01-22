@@ -3,7 +3,21 @@
 
 use tracing_subscriber_multi::*;
 
-use std::{env, sync::Mutex};
+use std::{env, fs, sync::Mutex};
+use std::path::PathBuf;
+
+#[cfg(target_os = "windows")]
+pub fn local_log_dir() -> PathBuf {
+    PathBuf::from(".")
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+pub fn local_log_dir() -> PathBuf {
+    let mut base = dirs::data_local_dir().unwrap();
+    base.push("angelsuite");
+    fs::create_dir_all(&base).unwrap();
+    base
+}
 
 fn main() {
     let subscriber = FmtSubscriber::builder()
@@ -18,7 +32,7 @@ fn main() {
         .with_writer(Mutex::new(DualWriter::new(
             std::io::stderr(),
             AnsiStripper::new(RotatingFile::new(
-                "angelsuite-installer.log",
+                local_log_dir().join("angelsuite-installer.log"),
                 AppendCount::new(3),
                 ContentLimit::Lines(1000),
                 Compression::OnRotate(0),
