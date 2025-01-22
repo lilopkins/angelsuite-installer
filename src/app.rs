@@ -10,6 +10,8 @@ extern "C" {
     async fn invoke(cmd: &str, args: JsValue) -> Result<JsValue, JsValue>;
     #[wasm_bindgen(js_namespace = ["window"])]
     fn alert(s: &str);
+    #[wasm_bindgen(js_namespace = ["window"])]
+    fn confirm(s: &str) -> bool;
 }
 
 #[derive(Deserialize, Default)]
@@ -300,25 +302,28 @@ pub fn item(props: &ItemProps) -> Html {
 
     let onclick_remove = {
         let id = id.clone();
+        let name = props.name.clone();
         let cb = props.set_progress_message.clone();
         Callback::from(move |e: MouseEvent| {
             e.prevent_default();
 
-            cb.emit((Some("Removing...".to_string()), false));
+            if confirm(&format!("Are you sure you want to remove {name}?")) {
+                cb.emit((Some("Removing...".to_string()), false));
 
-            let id = id.clone();
-            let cb = cb.clone();
-            spawn_local(async move {
-                let args = serde_wasm_bindgen::to_value(&StartInstallUpgradeRemoveArgs {
-                    id: (*id).clone(),
-                })
-                .unwrap();
+                let id = id.clone();
+                let cb = cb.clone();
+                spawn_local(async move {
+                    let args = serde_wasm_bindgen::to_value(&StartInstallUpgradeRemoveArgs {
+                        id: (*id).clone(),
+                    })
+                    .unwrap();
 
-                // rationale: doesn't fail
-                invoke("remove_app", args).await.unwrap();
+                    // rationale: doesn't fail
+                    invoke("remove_app", args).await.unwrap();
 
-                cb.emit((None, true));
-            });
+                    cb.emit((None, true));
+                });
+            }
         })
     };
 
