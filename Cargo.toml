@@ -22,7 +22,7 @@ console_error_panic_hook = "0.1.7"
 members = ["src-tauri"]
 
 [workspace.package]
-version = "0.5.7"
+version = "0.5.8"
 publish = false
 license = "GPL-3.0"
 authors = ["Lily Hopkins <lily@hpkns.uk>"]
