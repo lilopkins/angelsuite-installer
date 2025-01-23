@@ -112,16 +112,20 @@ async fn load_manifest<R: Runtime>(
     tracing::debug!("Loading manifest...");
     let mut result = ManifestLoadResult::default();
 
-    result.installer_update_available = if let Ok(u) = app.updater() {
-        if let Ok(Some(update)) = u.check().await {
-            tracing::info!("Installer update available ({})!", update.version);
-            Some(update.version)
+    let force_work_offline = env::var("ANGELSUITE_WORK_OFFLINE").is_ok_and(|v| !v.is_empty());
+
+    if !force_work_offline {
+        result.installer_update_available = if let Ok(u) = app.updater() {
+            if let Ok(Some(update)) = u.check().await {
+                tracing::info!("Installer update available ({})!", update.version);
+                Some(update.version)
+            } else {
+                None
+            }
         } else {
             None
-        }
-    } else {
-        None
-    };
+        };
+    }
 
     // Check if `installer.json` exists. If not, create it.
     let install_data = if let Ok(f) = fs::File::open(local_install_file()) {
@@ -139,7 +143,7 @@ async fn load_manifest<R: Runtime>(
         .expect("installer.json is invalid on disk")
     };
 
-    let res = if env::var("ANGELSUITE_WORK_OFFLINE").is_ok_and(|v| !v.is_empty()) {
+    let res = if force_work_offline {
         None
     } else {
         let res = reqwest::get(MANIFEST_URL).await;
