@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use getset::{Getters, Setters};
 use serde::{Deserialize, Serialize};
@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Serialize, Deserialize, Getters, Default)]
 #[getset(get = "pub")]
 pub struct Install {
-    products: HashMap<String, InstalledProduct>,
+    products: BTreeMap<String, InstalledProduct>,
 }
 
 impl Install {
