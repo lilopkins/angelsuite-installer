@@ -8,7 +8,11 @@ use std::{env, fs, sync::Mutex};
 
 #[cfg(target_os = "windows")]
 pub fn local_log_dir() -> PathBuf {
-    PathBuf::from(".")
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent())
+        .cloned()
+        .unwrap_or(PathBuf::from("."))
 }
 
 #[cfg(any(target_os = "macos", target_os = "linux"))]
