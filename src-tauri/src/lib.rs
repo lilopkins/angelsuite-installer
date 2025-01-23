@@ -142,9 +142,15 @@ async fn load_manifest<R: Runtime>(
         .expect("installer.json is invalid on disk")
     };
 
+    let res = if env::var("ANGELSUITE_WORK_OFFLINE").is_ok_and(|v| !v.is_empty()) {
+        None
+    } else {
         let res = reqwest::get(MANIFEST_URL).await;
+        tracing::trace!("Manifest fetch response: {res:?}");
+        res.ok()
+    };
 
-    if res.is_err() || std::env::var("ANGEL_WORK_OFFLINE") == Ok("1".to_string()) {
+    if res.is_none() {
         tracing::info!("Working offline.");
         // Work offline
         // Load installed products
@@ -169,6 +175,7 @@ async fn load_manifest<R: Runtime>(
         *state.install_data.lock().unwrap() = install_data;
         return Ok(result);
     }
+
     let body: Manifest = res
         .unwrap()
         .json()
