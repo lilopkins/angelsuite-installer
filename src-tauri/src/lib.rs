@@ -23,8 +23,7 @@ pub const MANIFEST_URL: &str = "https://gist.githubusercontent.com/lilopkins/a9a
 pub fn local_install_file() -> PathBuf {
     std::env::current_exe()
         .ok()
-        .and_then(|p| p.parent())
-        .cloned()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .unwrap_or(PathBuf::from("."))
         .join("installer.json")
 }
@@ -40,8 +39,7 @@ pub fn local_install_file() -> PathBuf {
 pub fn local_environment_file() -> PathBuf {
     std::env::current_exe()
         .ok()
-        .and_then(|p| p.parent())
-        .cloned()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .unwrap_or(PathBuf::from("."))
         .join(".env")
 }
@@ -57,8 +55,7 @@ pub fn local_environment_file() -> PathBuf {
 pub fn local_install_dir() -> PathBuf {
     std::env::current_exe()
         .ok()
-        .and_then(|p| p.parent())
-        .cloned()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .unwrap_or(PathBuf::from("."))
 }
 
