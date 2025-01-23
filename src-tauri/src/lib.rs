@@ -267,7 +267,16 @@ async fn install_app<R: Runtime>(
                         {
                             continue;
                         }
-                        if cfg!(target_os = "macos") && !target_oses.contains(&"mac".to_string()) {
+                        if cfg!(target_os = "macos")
+                            && cfg!(target_arch = "aarch64")
+                            && !target_oses.contains(&"mac".to_string())
+                        {
+                            continue;
+                        }
+                        if cfg!(target_os = "macos")
+                            && cfg!(target_arch = "x86_64")
+                            && !target_oses.contains(&"mac-intel".to_string())
+                        {
                             continue;
                         }
                         if cfg!(target_os = "linux") && !target_oses.contains(&"linux".to_string())
