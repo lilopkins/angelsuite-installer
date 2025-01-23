@@ -10,8 +10,7 @@ use std::{env, fs, sync::Mutex};
 pub fn local_log_dir() -> PathBuf {
     std::env::current_exe()
         .ok()
-        .and_then(|p| p.parent())
-        .cloned()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .unwrap_or(PathBuf::from("."))
 }
 
