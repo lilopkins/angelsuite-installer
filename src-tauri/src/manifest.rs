@@ -46,7 +46,9 @@ impl Product {
             if *v.version() == self.latest_version(allow_prerelease) {
                 if cfg!(target_os = "windows") {
                     return v.downloads().windows().clone();
-                } else if cfg!(target_os = "macos") {
+                } else if cfg!(target_os = "macos") && cfg!(target_arch = "x86_64") {
+                    return v.downloads().mac_intel().clone();
+                } else if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
                     return v.downloads().mac().clone();
                 } else if cfg!(target_os = "linux") {
                     return v.downloads().linux().clone();
@@ -85,8 +87,11 @@ pub struct ProductVersion {
 pub struct ProductDownloads {
     /// The Windows download
     windows: Option<DownloadSpec>,
-    /// The Mac download
+    /// The Mac (ARM) download
     mac: Option<DownloadSpec>,
+    /// The Mac (Intel) download
+    #[serde(rename = "mac-intel")]
+    mac_intel: Option<DownloadSpec>,
     /// The Linux download
     linux: Option<DownloadSpec>,
 }
