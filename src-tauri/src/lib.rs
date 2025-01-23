@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env;
 use std::io::{BufReader, BufWriter};
 use std::path::PathBuf;
 use std::process::Command;
@@ -20,7 +21,12 @@ pub const MANIFEST_URL: &str = "https://gist.githubusercontent.com/lilopkins/a9a
 
 #[cfg(target_os = "windows")]
 pub fn local_install_file() -> PathBuf {
-    PathBuf::from("./installer.json")
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent())
+        .cloned()
+        .unwrap_or(PathBuf::from("."))
+        .join("installer.json")
 }
 
 #[cfg(any(target_os = "macos", target_os = "linux"))]
@@ -32,7 +38,12 @@ pub fn local_install_file() -> PathBuf {
 
 #[cfg(target_os = "windows")]
 pub fn local_environment_file() -> PathBuf {
-    PathBuf::from("./.env")
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent())
+        .cloned()
+        .unwrap_or(PathBuf::from("."))
+        .join(".env")
 }
 
 #[cfg(any(target_os = "macos", target_os = "linux"))]
@@ -44,7 +55,11 @@ pub fn local_environment_file() -> PathBuf {
 
 #[cfg(target_os = "windows")]
 pub fn local_install_dir() -> PathBuf {
-    PathBuf::from(".")
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent())
+        .cloned()
+        .unwrap_or(PathBuf::from("."))
 }
 
 #[cfg(any(target_os = "macos", target_os = "linux"))]
@@ -127,7 +142,7 @@ async fn load_manifest<R: Runtime>(
         .expect("installer.json is invalid on disk")
     };
 
-    let res = reqwest::get(MANIFEST_URL).await;
+        let res = reqwest::get(MANIFEST_URL).await;
 
     if res.is_err() || std::env::var("ANGEL_WORK_OFFLINE") == Ok("1".to_string()) {
         tracing::info!("Working offline.");
@@ -434,9 +449,13 @@ fn start_app<R: Runtime>(
         tracing::debug!("Starting {canonical_path:?} with environment variables: {env_map:?}");
         Command::new(canonical_path)
             .current_dir(
-                prod.execute_working_directory()
-                    .clone()
-                    .unwrap_or(".".to_string()),
+                prod.execute_working_directory().clone().unwrap_or(
+                    local_install_dir()
+                        .as_path()
+                        .to_str()
+                        .map(|s| s.to_string())
+                        .unwrap_or(".".to_string()),
+                ),
             )
             .envs(env_map)
             .spawn()
