@@ -1,7 +1,14 @@
-# Tauri + Yew
+# AngelSuite Installer
 
-This template should help get you started developing with Tauri and Yew.
+The AngelSuite Installer allows you to install and update AngelSuite tools with
+ease.
 
-## Recommended IDE Setup
+## Installation
 
-[VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer).
+Find a suitable installer format of your choosing in the
+[Releases](https://github.com/lilopkins/angelsuite-installer/releases) page.
+
+### Prerequisites
+
+On most systems, all prerequisites will already be installed. If not, check the
+[https://tauri.app](Tauri website) for the dependencies for your system.
