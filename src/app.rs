@@ -34,6 +34,8 @@ pub struct ManifestLoadResultProduct {
     pub id: String,
     /// The name of this product
     pub name: String,
+    /// A base64 encoded icon at 64x64 size.
+    pub icon: Option<String>,
     /// The local installed version of this product, if installed
     pub local_version: Option<String>,
     /// The latest remote version of this product, excluding prereleases
@@ -131,6 +133,7 @@ pub fn app() -> Html {
                 <Item
                     id={ prod.id }
                     name={ prod.name }
+                    icon={ prod.icon }
                     local_version={ prod.local_version }
                     remote_version={ prod.remote_version }
                     remote_version_prerelease={ prod.remote_version_prerelease }
@@ -166,6 +169,8 @@ pub struct ItemProps {
     pub id: String,
     /// The name of this product
     pub name: String,
+    /// A base64 encoded icon at 64x64 size.
+    pub icon: Option<String>,
     /// The local installed version of this product, if installed
     pub local_version: Option<String>,
     /// The latest remote version of this product, excluding prereleases
@@ -372,9 +377,15 @@ pub fn item(props: &ItemProps) -> Html {
         });
     }
 
+    let icon = props.icon.as_ref().map(|ic| {
+        html! {
+            <img class="item__icon" src={ ic.clone() } aria-hidden="true" />
+        }
+    });
+
     html! {
         <div class="scrolling-list__item item">
-            <p class="item__name">{ &props.name }</p>
+            <p class="item__name">{ icon }{ &props.name }</p>
             <p class="item__state">{ &state_str }</p>
             <p class="item__description">{ &props.description }</p>
             <label class="item__prerelease">

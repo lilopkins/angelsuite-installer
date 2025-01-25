@@ -85,6 +85,8 @@ pub struct ManifestLoadResultProduct {
     pub id: String,
     /// The name of this product
     pub name: String,
+    /// A base64 encoded icon at 64x64 size.
+    pub icon: Option<String>,
     /// The local installed version of this product, if installed
     pub local_version: Option<String>,
     /// The latest remote version of this product, excluding prereleases
@@ -162,6 +164,7 @@ async fn load_manifest<R: Runtime>(
             result.products.push(ManifestLoadResultProduct {
                 id: prod_id.clone(),
                 name: prod.name().clone(),
+                icon: prod.icon().clone(),
                 local_version: prod.version().clone(),
                 remote_version: "0.0.0".to_string(),
                 remote_version_prerelease: "0.0.0".to_string(),
@@ -192,6 +195,7 @@ async fn load_manifest<R: Runtime>(
         result.products.push(ManifestLoadResultProduct {
             id: prod.id().clone(),
             name: prod.name().clone(),
+            icon: prod.icon().clone(),
             local_version: install_prod.and_then(|p| p.version().clone()),
             remote_version: prod.latest_version(false).to_string(),
             remote_version_prerelease: prod.latest_version(true).to_string(),

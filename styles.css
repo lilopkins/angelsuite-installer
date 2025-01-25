@@ -30,6 +30,12 @@ body {
   position: relative;
 }
 
+.item__icon {
+  display: inline;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
 .item__name {
   margin: 0;
   font-size: 130%;

@@ -20,6 +20,8 @@ pub struct Product {
     name: String,
     /// The description of the product
     description: String,
+    /// A base64 encoded icon at 64x64 size.
+    icon: Option<String>,
     /// The target directory to install to for this product. This should be unique as this is also the directory that is deleted for uninstall.
     install_directory: String,
     /// A list of files/directories to remove when upgrading from particular versions
