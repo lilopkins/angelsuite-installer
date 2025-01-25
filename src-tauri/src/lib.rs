@@ -75,6 +75,7 @@ struct AppData {
 
 #[derive(Serialize, Default)]
 struct ManifestLoadResult {
+    can_auto_update: bool,
     installer_update_available: Option<String>,
     products: Vec<ManifestLoadResultProduct>,
 }
@@ -112,7 +113,18 @@ async fn load_manifest<R: Runtime>(
     _window: tauri::Window<R>,
 ) -> Result<ManifestLoadResult, String> {
     tracing::debug!("Loading manifest...");
-    let mut result = ManifestLoadResult::default();
+    let mut result = ManifestLoadResult {
+        can_auto_update: can_auto_update(),
+        ..Default::default()
+    };
+    tracing::debug!(
+        "This environment {} automatically update!",
+        if result.can_auto_update {
+            "can"
+        } else {
+            "cannot"
+        }
+    );
 
     let force_work_offline = env::var("ANGELSUITE_WORK_OFFLINE").is_ok_and(|v| !v.is_empty());
 
@@ -382,6 +394,7 @@ async fn install_app<R: Runtime>(
             tracing::info!("Install complete, saving data");
             prod_install.set_name(prod.name().clone());
             prod_install.set_description(prod.description().clone());
+            prod_install.set_icon(prod.icon().clone());
             prod_install.set_version(Some(version.to_string()));
             if let Some(exec) = download.executable() {
                 let mut main_exec_path = install_directory.clone();
@@ -525,6 +538,25 @@ fn build_updater<R: Runtime>(
     app.updater_builder()
         .endpoints(endpoints)
         .and_then(|b| b.build())
+}
+
+fn can_auto_update() -> bool {
+    if cfg!(windows) {
+        env::current_exe().is_ok_and(|p| {
+            let mut is_in_program_files = false;
+            for component in p.components() {
+                if component.as_os_str().to_string_lossy() == "Program Files" {
+                    is_in_program_files = true;
+                    break;
+                }
+            }
+            !is_in_program_files
+        })
+    } else if cfg!(target_os = "linux") {
+        env::var("APPIMAGE").is_ok()
+    } else {
+        true
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
