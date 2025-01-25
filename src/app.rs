@@ -24,6 +24,7 @@ struct DialogOptions<'a> {
 
 #[derive(Deserialize, Default)]
 struct ManifestLoadResult {
+    can_auto_update: bool,
     installer_update_available: Option<String>,
     products: Vec<ManifestLoadResultProduct>,
 }
@@ -110,15 +111,23 @@ pub fn app() -> Html {
         })
     };
 
+    let update_automatically_button = if manifest_load_result.can_auto_update {
+        Some(html! {
+            <a class="btn" href="#" onclick={ onclick_update }>{ "Update Automatically" }</a>
+        })
+    } else {
+        None
+    };
     let update_notification = manifest_load_result
         .installer_update_available
         .clone()
         .map(|v| {
-            let href = format!("https://github.com/lilopkins/angelsuite-installer/releases/tag/app-v{v}");
+            let href =
+                format!("https://github.com/lilopkins/angelsuite-installer/releases/tag/app-v{v}");
             html! {
                 <p class="update-notification">
                     { "An installer update is available (version " }{ v } { ") " }
-                    <a class="btn" href="#" onclick={ onclick_update }>{ "Update Automatically" }</a>
+                    { update_automatically_button }
                     <a class="btn" href={ href } target="_blank">{ "Update Manually" }</a>
                 </p>
             }
