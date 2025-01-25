@@ -509,6 +509,12 @@ async fn update_installer<R: Runtime>(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            let _ = app.get_webview_window("main")
+                .expect("main window must be present")
+                .set_focus();
+        }))
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             app.manage(AppData::default());
             Ok(())

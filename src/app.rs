@@ -8,10 +8,18 @@ extern "C" {
     #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
     #[wasm_bindgen(catch)]
     async fn invoke(cmd: &str, args: JsValue) -> Result<JsValue, JsValue>;
-    #[wasm_bindgen(js_namespace = ["window"])]
-    fn alert(s: &str);
-    #[wasm_bindgen(js_namespace = ["window"])]
-    fn confirm(s: &str) -> bool;
+
+    #[wasm_bindgen(js_namespace = ["window", "__TAURI_PLUGIN_DIALOG__"])]
+    fn dialog(s: &str, opts: JsValue);
+
+    #[wasm_bindgen(js_namespace = ["window", "__TAURI_PLUGIN_DIALOG__"])]
+    fn confirm(s: &str, opts: JsValue) -> bool;
+}
+
+#[derive(Serialize)]
+struct DialogOptions<'a> {
+    title: &'a str,
+    kind: &'a str,
 }
 
 #[derive(Deserialize, Default)]
@@ -60,10 +68,14 @@ pub fn app() -> Html {
                         manifest_load_result.set(serde_wasm_bindgen::from_value(res).unwrap());
                     }
                     Err(e) => {
-                        alert(&format!(
-                            "{} Please try again later.",
-                            e.as_string().unwrap()
-                        ));
+                        dialog(
+                            &format!("{} Please try again later.", e.as_string().unwrap()),
+                            serde_wasm_bindgen::to_value(&DialogOptions {
+                                title: "Failed to load manifest",
+                                kind: "warning",
+                            })
+                            .unwrap(),
+                        );
                     }
                 }
             });
@@ -83,7 +95,6 @@ pub fn app() -> Html {
         })
     };
 
-    #[allow(unused)]
     let onclick_update = {
         let cb = cb_set_progress_message.clone();
         Callback::from(move |e: MouseEvent| {
@@ -92,7 +103,7 @@ pub fn app() -> Html {
             cb.emit((Some("Updating...".to_string()), false));
 
             spawn_local(async move {
-                invoke("update_installer", JsValue::null()).await;
+                let _ = invoke("update_installer", JsValue::null()).await;
             });
         })
     };
@@ -104,8 +115,7 @@ pub fn app() -> Html {
             html! {
                 <p class="update-notification">
                     { "An update to the installer is available. (version " }{ v } { ") " }
-                    // ! Update button is temporarily disabled as it doens't work on most distributions
-                    // <button onclick={ onclick_update }>{ "Update and Restart" }</button>
+                    <button onclick={ onclick_update }>{ "Update and Restart" }</button>
                 </p>
             }
         });
@@ -307,7 +317,14 @@ pub fn item(props: &ItemProps) -> Html {
         Callback::from(move |e: MouseEvent| {
             e.prevent_default();
 
-            if confirm(&format!("Are you sure you want to remove {name}?")) {
+            if confirm(
+                &format!("Are you sure you want to remove {name}?"),
+                serde_wasm_bindgen::to_value(&DialogOptions {
+                    title: "Are you sure?",
+                    kind: "warning",
+                })
+                .unwrap(),
+            ) {
                 cb.emit((Some("Removing...".to_string()), false));
 
                 let id = id.clone();
