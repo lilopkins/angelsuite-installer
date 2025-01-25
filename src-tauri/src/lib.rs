@@ -506,17 +506,19 @@ async fn update_installer<R: Runtime>(
     app.restart();
 }
 
-fn build_updater<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<tauri_plugin_updater::Updater, tauri_plugin_updater::Error> {
+fn build_updater<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<tauri_plugin_updater::Updater, tauri_plugin_updater::Error> {
     let mut endpoints = vec![Url::parse(
         "https://github.com/lilopkins/angelsuite-installer/releases/latest/download/latest.json",
     )
     .unwrap()];
-    if let Ok(Ok(extra_url)) = env::var("ANGELSUITE_EXTRA_UPDATE_ENDPOINT").map(|v| Url::parse(&v)) {
+    if let Ok(Ok(extra_url)) = env::var("ANGELSUITE_EXTRA_UPDATE_ENDPOINT").map(|v| Url::parse(&v))
+    {
         endpoints.push(extra_url);
     }
 
-    app
-        .updater_builder()
+    app.updater_builder()
         .endpoints(endpoints)
         .and_then(|b| b.build())
 }
@@ -525,7 +527,8 @@ fn build_updater<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<tauri_plugin_u
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            let _ = app.get_webview_window("main")
+            let _ = app
+                .get_webview_window("main")
                 .expect("main window must be present")
                 .set_focus();
         }))

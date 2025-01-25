@@ -112,10 +112,12 @@ pub fn app() -> Html {
         .installer_update_available
         .clone()
         .map(|v| {
+            let href = format!("https://github.com/lilopkins/angelsuite-installer/releases/tag/v{v}");
             html! {
                 <p class="update-notification">
-                    { "An update to the installer is available. (version " }{ v } { ") " }
-                    <button onclick={ onclick_update }>{ "Update and Restart" }</button>
+                    { "An installer update is available (version " }{ v } { ") " }
+                    <a class="btn" href="#" onclick={ onclick_update }>{ "Update Automatically" }</a>
+                    <a class="btn" href={ href } target="_blank">{ "Update Manually" }</a>
                 </p>
             }
         });
@@ -380,9 +382,9 @@ pub fn item(props: &ItemProps) -> Html {
                 { "Use Prerelease Versions" }
             </label>
             <p style="color: red;">{ &*install_error }</p>
-            <button class="item__install" onclick={ onclick_start } hidden={ hide_start }>{ "Start" }</button>
-            <button class="item__install" onclick={ onclick_install } hidden={ hide_install_upgrade }>{ install_uprade_txt }</button>
-            <button class="item__install" onclick={ onclick_remove } hidden={ hide_remove }>{ "Remove" }</button>
+            <button class="btn" onclick={ onclick_start } hidden={ hide_start }>{ "Start" }</button>
+            <button class="btn" onclick={ onclick_install } hidden={ hide_install_upgrade }>{ install_uprade_txt }</button>
+            <button class="btn" onclick={ onclick_remove } hidden={ hide_remove }>{ "Remove" }</button>
         </div>
     }
 }
