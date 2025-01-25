@@ -10,7 +10,7 @@ use install::Install;
 use manifest::{DownloadStrategy, Manifest};
 use semver::Version;
 use serde::Serialize;
-use tauri::{Manager, Runtime};
+use tauri::{Manager, Runtime, Url};
 use tauri_plugin_updater::UpdaterExt;
 
 mod gzip;
@@ -115,7 +115,7 @@ async fn load_manifest<R: Runtime>(
     let force_work_offline = env::var("ANGELSUITE_WORK_OFFLINE").is_ok_and(|v| !v.is_empty());
 
     if !force_work_offline {
-        result.installer_update_available = if let Ok(u) = app.updater() {
+        result.installer_update_available = if let Ok(u) = build_updater(&app) {
             if let Ok(Some(update)) = u.check().await {
                 tracing::info!("Installer update available ({})!", update.version);
                 Some(update.version)
@@ -486,7 +486,7 @@ async fn update_installer<R: Runtime>(
     app: tauri::AppHandle<R>,
     _window: tauri::Window<R>,
 ) -> tauri_plugin_updater::Result<()> {
-    let update = app.updater()?.check().await?.unwrap();
+    let update = build_updater(&app)?.check().await?.unwrap();
     let mut downloaded = 0;
 
     // alternatively we could also call update.download() and update.install() separately
@@ -504,6 +504,21 @@ async fn update_installer<R: Runtime>(
 
     println!("update installed");
     app.restart();
+}
+
+fn build_updater<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<tauri_plugin_updater::Updater, tauri_plugin_updater::Error> {
+    let mut endpoints = vec![Url::parse(
+        "https://github.com/lilopkins/angelsuite-installer/releases/latest/download/latest.json",
+    )
+    .unwrap()];
+    if let Ok(Ok(extra_url)) = env::var("ANGELSUITE_EXTRA_UPDATE_ENDPOINT").map(|v| Url::parse(&v)) {
+        endpoints.push(extra_url);
+    }
+
+    app
+        .updater_builder()
+        .endpoints(endpoints)
+        .and_then(|b| b.build())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
