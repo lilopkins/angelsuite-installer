@@ -114,7 +114,7 @@ pub fn app() -> Html {
         .installer_update_available
         .clone()
         .map(|v| {
-            let href = format!("https://github.com/lilopkins/angelsuite-installer/releases/tag/v{v}");
+            let href = format!("https://github.com/lilopkins/angelsuite-installer/releases/tag/app-v{v}");
             html! {
                 <p class="update-notification">
                     { "An installer update is available (version " }{ v } { ") " }
