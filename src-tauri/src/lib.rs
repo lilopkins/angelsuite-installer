@@ -10,7 +10,7 @@ use install::Install;
 use manifest::{DownloadStrategy, Manifest};
 use semver::Version;
 use serde::Serialize;
-use tauri::{Manager, Runtime};
+use tauri::{Manager, Runtime, Url};
 use tauri_plugin_updater::UpdaterExt;
 
 mod gzip;
@@ -85,6 +85,8 @@ pub struct ManifestLoadResultProduct {
     pub id: String,
     /// The name of this product
     pub name: String,
+    /// A base64 encoded icon at 64x64 size.
+    pub icon: Option<String>,
     /// The local installed version of this product, if installed
     pub local_version: Option<String>,
     /// The latest remote version of this product, excluding prereleases
@@ -115,7 +117,7 @@ async fn load_manifest<R: Runtime>(
     let force_work_offline = env::var("ANGELSUITE_WORK_OFFLINE").is_ok_and(|v| !v.is_empty());
 
     if !force_work_offline {
-        result.installer_update_available = if let Ok(u) = app.updater() {
+        result.installer_update_available = if let Ok(u) = build_updater(&app) {
             if let Ok(Some(update)) = u.check().await {
                 tracing::info!("Installer update available ({})!", update.version);
                 Some(update.version)
@@ -162,6 +164,7 @@ async fn load_manifest<R: Runtime>(
             result.products.push(ManifestLoadResultProduct {
                 id: prod_id.clone(),
                 name: prod.name().clone(),
+                icon: prod.icon().clone(),
                 local_version: prod.version().clone(),
                 remote_version: "0.0.0".to_string(),
                 remote_version_prerelease: "0.0.0".to_string(),
@@ -192,6 +195,7 @@ async fn load_manifest<R: Runtime>(
         result.products.push(ManifestLoadResultProduct {
             id: prod.id().clone(),
             name: prod.name().clone(),
+            icon: prod.icon().clone(),
             local_version: install_prod.and_then(|p| p.version().clone()),
             remote_version: prod.latest_version(false).to_string(),
             remote_version_prerelease: prod.latest_version(true).to_string(),
@@ -486,7 +490,7 @@ async fn update_installer<R: Runtime>(
     app: tauri::AppHandle<R>,
     _window: tauri::Window<R>,
 ) -> tauri_plugin_updater::Result<()> {
-    let update = app.updater()?.check().await?.unwrap();
+    let update = build_updater(&app)?.check().await?.unwrap();
     let mut downloaded = 0;
 
     // alternatively we could also call update.download() and update.install() separately
@@ -506,9 +510,33 @@ async fn update_installer<R: Runtime>(
     app.restart();
 }
 
+fn build_updater<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<tauri_plugin_updater::Updater, tauri_plugin_updater::Error> {
+    let mut endpoints = vec![Url::parse(
+        "https://github.com/lilopkins/angelsuite-installer/releases/latest/download/latest.json",
+    )
+    .unwrap()];
+    if let Ok(Ok(extra_url)) = env::var("ANGELSUITE_EXTRA_UPDATE_ENDPOINT").map(|v| Url::parse(&v))
+    {
+        endpoints.push(extra_url);
+    }
+
+    app.updater_builder()
+        .endpoints(endpoints)
+        .and_then(|b| b.build())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            let _ = app
+                .get_webview_window("main")
+                .expect("main window must be present")
+                .set_focus();
+        }))
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             app.manage(AppData::default());
             Ok(())

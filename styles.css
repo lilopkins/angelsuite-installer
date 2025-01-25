@@ -8,17 +8,11 @@ body {
   flex-direction: row;
   gap: 32px;
   align-items: center;
-}
-
-h1 {
-  margin: 0;
-  padding: 0;
-  padding-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .update-notification {
-  margin-top: 0;
-  color: #880000;
+  color: #aa6000;
 }
 
 .scrolling-list {
@@ -34,6 +28,12 @@ h1 {
 
 .item {
   position: relative;
+}
+
+.item__icon {
+  display: inline;
+  margin-right: 4px;
+  vertical-align: middle;
 }
 
 .item__name {
@@ -63,10 +63,18 @@ h1 {
   }
 }
 
-.item__install {
-  padding: 8px;
+.btn {
+    border: 1px solid #919191;
+    border-radius: 4px;
+    background-color: #e9e9e9;
+    color: #030303;
+    padding: 8px;
+    margin: 2px;
+    text-decoration: none;
+    font-size: 1em;
+    cursor: default;
 }
 
-.item__install:not(:last-child) {
-  margin-right: 8px;
+.btn:hover {
+    background-color: #cccccc;
 }

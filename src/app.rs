@@ -8,10 +8,18 @@ extern "C" {
     #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
     #[wasm_bindgen(catch)]
     async fn invoke(cmd: &str, args: JsValue) -> Result<JsValue, JsValue>;
-    #[wasm_bindgen(js_namespace = ["window"])]
-    fn alert(s: &str);
-    #[wasm_bindgen(js_namespace = ["window"])]
-    fn confirm(s: &str) -> bool;
+
+    #[wasm_bindgen(js_namespace = ["window", "__TAURI_PLUGIN_DIALOG__"])]
+    fn dialog(s: &str, opts: JsValue);
+
+    #[wasm_bindgen(js_namespace = ["window", "__TAURI_PLUGIN_DIALOG__"])]
+    fn confirm(s: &str, opts: JsValue) -> bool;
+}
+
+#[derive(Serialize)]
+struct DialogOptions<'a> {
+    title: &'a str,
+    kind: &'a str,
 }
 
 #[derive(Deserialize, Default)]
@@ -26,6 +34,8 @@ pub struct ManifestLoadResultProduct {
     pub id: String,
     /// The name of this product
     pub name: String,
+    /// A base64 encoded icon at 64x64 size.
+    pub icon: Option<String>,
     /// The local installed version of this product, if installed
     pub local_version: Option<String>,
     /// The latest remote version of this product, excluding prereleases
@@ -60,10 +70,14 @@ pub fn app() -> Html {
                         manifest_load_result.set(serde_wasm_bindgen::from_value(res).unwrap());
                     }
                     Err(e) => {
-                        alert(&format!(
-                            "{} Please try again later.",
-                            e.as_string().unwrap()
-                        ));
+                        dialog(
+                            &format!("{} Please try again later.", e.as_string().unwrap()),
+                            serde_wasm_bindgen::to_value(&DialogOptions {
+                                title: "Failed to load manifest",
+                                kind: "warning",
+                            })
+                            .unwrap(),
+                        );
                     }
                 }
             });
@@ -83,7 +97,6 @@ pub fn app() -> Html {
         })
     };
 
-    #[allow(unused)]
     let onclick_update = {
         let cb = cb_set_progress_message.clone();
         Callback::from(move |e: MouseEvent| {
@@ -92,7 +105,7 @@ pub fn app() -> Html {
             cb.emit((Some("Updating...".to_string()), false));
 
             spawn_local(async move {
-                invoke("update_installer", JsValue::null()).await;
+                let _ = invoke("update_installer", JsValue::null()).await;
             });
         })
     };
@@ -101,11 +114,12 @@ pub fn app() -> Html {
         .installer_update_available
         .clone()
         .map(|v| {
+            let href = format!("https://github.com/lilopkins/angelsuite-installer/releases/tag/v{v}");
             html! {
                 <p class="update-notification">
-                    { "An update to the installer is available. (version " }{ v } { ") " }
-                    // ! Update button is temporarily disabled as it doens't work on most distributions
-                    // <button onclick={ onclick_update }>{ "Update and Restart" }</button>
+                    { "An installer update is available (version " }{ v } { ") " }
+                    <a class="btn" href="#" onclick={ onclick_update }>{ "Update Automatically" }</a>
+                    <a class="btn" href={ href } target="_blank">{ "Update Manually" }</a>
                 </p>
             }
         });
@@ -119,6 +133,7 @@ pub fn app() -> Html {
                 <Item
                     id={ prod.id }
                     name={ prod.name }
+                    icon={ prod.icon }
                     local_version={ prod.local_version }
                     remote_version={ prod.remote_version }
                     remote_version_prerelease={ prod.remote_version_prerelease }
@@ -154,6 +169,8 @@ pub struct ItemProps {
     pub id: String,
     /// The name of this product
     pub name: String,
+    /// A base64 encoded icon at 64x64 size.
+    pub icon: Option<String>,
     /// The local installed version of this product, if installed
     pub local_version: Option<String>,
     /// The latest remote version of this product, excluding prereleases
@@ -307,7 +324,14 @@ pub fn item(props: &ItemProps) -> Html {
         Callback::from(move |e: MouseEvent| {
             e.prevent_default();
 
-            if confirm(&format!("Are you sure you want to remove {name}?")) {
+            if confirm(
+                &format!("Are you sure you want to remove {name}?"),
+                serde_wasm_bindgen::to_value(&DialogOptions {
+                    title: "Are you sure?",
+                    kind: "warning",
+                })
+                .unwrap(),
+            ) {
                 cb.emit((Some("Removing...".to_string()), false));
 
                 let id = id.clone();
@@ -353,9 +377,15 @@ pub fn item(props: &ItemProps) -> Html {
         });
     }
 
+    let icon = props.icon.as_ref().map(|ic| {
+        html! {
+            <img class="item__icon" src={ ic.clone() } aria-hidden="true" />
+        }
+    });
+
     html! {
         <div class="scrolling-list__item item">
-            <p class="item__name">{ &props.name }</p>
+            <p class="item__name">{ icon }{ &props.name }</p>
             <p class="item__state">{ &state_str }</p>
             <p class="item__description">{ &props.description }</p>
             <label class="item__prerelease">
@@ -363,9 +393,9 @@ pub fn item(props: &ItemProps) -> Html {
                 { "Use Prerelease Versions" }
             </label>
             <p style="color: red;">{ &*install_error }</p>
-            <button class="item__install" onclick={ onclick_start } hidden={ hide_start }>{ "Start" }</button>
-            <button class="item__install" onclick={ onclick_install } hidden={ hide_install_upgrade }>{ install_uprade_txt }</button>
-            <button class="item__install" onclick={ onclick_remove } hidden={ hide_remove }>{ "Remove" }</button>
+            <button class="btn" onclick={ onclick_start } hidden={ hide_start }>{ "Start" }</button>
+            <button class="btn" onclick={ onclick_install } hidden={ hide_install_upgrade }>{ install_uprade_txt }</button>
+            <button class="btn" onclick={ onclick_remove } hidden={ hide_remove }>{ "Remove" }</button>
         </div>
     }
 }

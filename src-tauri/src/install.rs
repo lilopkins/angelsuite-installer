@@ -37,6 +37,8 @@ pub struct InstalledProduct {
     /// The product description
     #[serde(default = "String::default")]
     description: String,
+    /// A base64 encoded icon at 64x64 size.
+    icon: Option<String>,
     /// The installed version, if the product is installed.
     version: Option<String>,
     /// The path to the working directory of this product, if it can be started.
