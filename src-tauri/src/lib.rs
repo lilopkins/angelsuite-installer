@@ -550,7 +550,7 @@ fn can_auto_update() -> bool {
                     break;
                 }
             }
-            !is_in_program_files
+            is_in_program_files
         })
     } else if cfg!(target_os = "linux") {
         env::var("APPIMAGE").is_ok_and(|v| !v.is_empty())
