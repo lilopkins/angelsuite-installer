@@ -382,6 +382,7 @@ async fn install_app<R: Runtime>(
             tracing::info!("Install complete, saving data");
             prod_install.set_name(prod.name().clone());
             prod_install.set_description(prod.description().clone());
+            prod_install.set_icon(prod.icon().clone());
             prod_install.set_version(Some(version.to_string()));
             if let Some(exec) = download.executable() {
                 let mut main_exec_path = install_directory.clone();
