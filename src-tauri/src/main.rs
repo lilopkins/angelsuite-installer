@@ -4,7 +4,7 @@
 use tracing_subscriber_multi::*;
 
 use std::path::PathBuf;
-use std::{env, fs, sync::Mutex};
+use std::{env, sync::Mutex};
 
 #[cfg(target_os = "windows")]
 pub fn local_log_dir() -> PathBuf {
@@ -18,7 +18,7 @@ pub fn local_log_dir() -> PathBuf {
 pub fn local_log_dir() -> PathBuf {
     let mut base = dirs::data_local_dir().unwrap();
     base.push("angelsuite");
-    fs::create_dir_all(&base).unwrap();
+    std::fs::create_dir_all(&base).unwrap();
     base
 }
 
