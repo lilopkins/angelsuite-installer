@@ -376,6 +376,12 @@ async fn install_app<R: Runtime>(
                                 .map_err(|e| format!("Failed to set permissions: {e}"))?;
                         }
                     }
+                    #[cfg(not(unix))]
+                    {
+                        if *chmod {
+                            // Do nothing, just to shut up compiler warnings…
+                        }
+                    }
                 }
                 DownloadStrategy::ZipFile => {
                     let reader = BufReader::new(
