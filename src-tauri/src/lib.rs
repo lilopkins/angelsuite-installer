@@ -21,11 +21,7 @@ pub const MANIFEST_URL: &str = "https://gist.githubusercontent.com/lilopkins/a9a
 
 #[cfg(target_os = "windows")]
 pub fn local_install_file() -> PathBuf {
-    std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .unwrap_or(PathBuf::from("."))
-        .join("installer.json")
+    local_install_dir().join("installer.json")
 }
 
 #[cfg(any(target_os = "macos", target_os = "linux"))]
@@ -53,10 +49,20 @@ pub fn local_environment_file() -> PathBuf {
 
 #[cfg(target_os = "windows")]
 pub fn local_install_dir() -> PathBuf {
-    std::env::current_exe()
+    let exe_dir = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .unwrap_or(PathBuf::from("."))
+        .unwrap_or(PathBuf::from("."));
+    if let Ok(meta) = std::fs::metadata(&exe_dir) {
+        tracing::debug!("Install dir metadata: {meta:?}");
+        exe_dir
+    } else {
+        // default to an appdata folder, probably installed as admin
+        let mut base = dirs::data_local_dir().unwrap();
+        base.push("AngelSuite");
+        fs::create_dir_all(&base).unwrap();
+        base
+    }
 }
 
 #[cfg(any(target_os = "macos", target_os = "linux"))]
