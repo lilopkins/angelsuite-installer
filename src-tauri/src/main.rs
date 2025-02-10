@@ -12,7 +12,12 @@ pub fn local_log_dir() -> PathBuf {
         .ok()
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .unwrap_or(PathBuf::from("."));
-    if let Ok(meta) = std::fs::metadata(&exe_dir) {
+
+    let test_file = exe_dir.join(".testio");
+    let writeable = std::fs::write(&test_file, []).is_ok();
+    let _ = std::fs::remove_file(&test_file);
+    tracing::debug!("Base logging path is writable: {writeable}");
+    if writeable {
         exe_dir
     } else {
         // default to an appdata folder, probably installed as admin
