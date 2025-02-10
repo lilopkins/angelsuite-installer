@@ -49,8 +49,13 @@ pub fn local_install_dir() -> PathBuf {
         .ok()
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .unwrap_or(PathBuf::from("."));
-    if let Ok(meta) = std::fs::metadata(&exe_dir) {
-        tracing::debug!("Install dir metadata: {meta:?}");
+
+    let test_file = exe_dir.join(".testio");
+    let writeable = std::fs::write(&test_file, []).is_ok();
+    let _ = std::fs::remove_file(&test_file);
+    tracing::debug!("Executable directory is writeable: {writeable}");
+
+    if writeable {
         exe_dir
     } else {
         // default to an appdata folder, probably installed as admin
