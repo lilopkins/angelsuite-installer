@@ -33,11 +33,7 @@ pub fn local_install_file() -> PathBuf {
 
 #[cfg(target_os = "windows")]
 pub fn local_environment_file() -> PathBuf {
-    std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .unwrap_or(PathBuf::from("."))
-        .join(".env")
+    local_install_dir().join(".env")
 }
 
 #[cfg(any(target_os = "macos", target_os = "linux"))]
