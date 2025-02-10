@@ -18,7 +18,7 @@ pub fn local_log_dir() -> PathBuf {
         // default to an appdata folder, probably installed as admin
         let mut base = dirs::data_local_dir().unwrap();
         base.push("AngelSuite");
-        fs::create_dir_all(&base).unwrap();
+        std::fs::create_dir_all(&base).unwrap();
         base
     }
 }
