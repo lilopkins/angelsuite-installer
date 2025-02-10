@@ -543,8 +543,11 @@ fn build_updater<R: Runtime>(
         "https://github.com/lilopkins/angelsuite-installer/releases/latest/download/latest.json",
     )
     .unwrap()];
-    if let Ok(Ok(extra_url)) = env::var("ANGELSUITE_EXTRA_UPDATE_ENDPOINT").map(|v| Url::parse(&v))
+    if let Ok(Ok(extra_url)) =
+        env::var("ANGELSUITE_OVERRIDE_UPDATE_ENDPOINT").map(|v| Url::parse(&v))
     {
+        tracing::warn!("The update manifest URL has been overridden with {extra_url}!");
+        endpoints.clear();
         endpoints.push(extra_url);
     }
 
