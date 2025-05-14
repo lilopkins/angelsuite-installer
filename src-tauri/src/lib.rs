@@ -408,6 +408,8 @@ async fn install_app<R: Runtime>(
                         .arg("MSIINSTALLPERUSER=1")
                         .output()
                         .map_err(|e| format!("Failed to install new version: {e}"))?;
+
+                    prod_install.set_msi_product_code(Some(product_code.clone()));
                 }
                 DownloadStrategy::ZipFile => {
                     let reader = BufReader::new(
@@ -473,6 +475,18 @@ async fn remove_app<R: Runtime>(
 
             tracing::info!("Removing from local manifest");
             let prod_install = install.get_mut_product_or_default(id);
+
+            if let Some(product_code) = prod_install.msi_product_code() {
+                tracing::info!("Removing MSI");
+                std::process::Command::new("msiexec.exe")
+                    .arg("/x")
+                    .arg(product_code)
+                    .arg("/q")
+                    .output()
+                    .map_err(|e| format!("Failed to uninstall old MSI: {e}"))?;
+            }
+
+            prod_install.set_msi_product_code(None);
             prod_install.set_version(None);
             prod_install.set_main_executable(None);
             prod_install.set_execute_working_directory(None);

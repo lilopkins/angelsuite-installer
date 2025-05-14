@@ -47,4 +47,6 @@ pub struct InstalledProduct {
     main_executable: Option<String>,
     /// Should this product use prerelease versions?
     use_prerelease: bool,
+    /// Should this product remove an MSI on uninstal?
+    msi_product_code: Option<String>,
 }
