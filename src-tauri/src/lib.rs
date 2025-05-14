@@ -390,6 +390,27 @@ async fn install_app<R: Runtime>(
                         }
                     }
                 }
+                DownloadStrategy::Msi { product_code } => {
+                    // First, uninstall any current version
+                    std::process::Command::new("msiexec.exe")
+                        .arg("/x")
+                        .arg(product_code)
+                        .arg("/q")
+                        .output()
+                        .map_err(|e| format!("Failed to uninstall old versions: {e}"))?;
+
+                    // Next, install new version
+                    std::process::Command::new("msiexec.exe")
+                        .arg("/i")
+                        .arg(tempfile)
+                        .arg("/qr")
+                        .arg("ALLUSERS=2")
+                        .arg("MSIINSTALLPERUSER=1")
+                        .output()
+                        .map_err(|e| format!("Failed to install new version: {e}"))?;
+
+                    prod_install.set_msi_product_code(Some(product_code.clone()));
+                }
                 DownloadStrategy::ZipFile => {
                     let reader = BufReader::new(
                         fs::File::open(&tempfile)
@@ -454,6 +475,18 @@ async fn remove_app<R: Runtime>(
 
             tracing::info!("Removing from local manifest");
             let prod_install = install.get_mut_product_or_default(id);
+
+            if let Some(product_code) = prod_install.msi_product_code() {
+                tracing::info!("Removing MSI");
+                std::process::Command::new("msiexec.exe")
+                    .arg("/x")
+                    .arg(product_code)
+                    .arg("/q")
+                    .output()
+                    .map_err(|e| format!("Failed to uninstall old MSI: {e}"))?;
+            }
+
+            prod_install.set_msi_product_code(None);
             prod_install.set_version(None);
             prod_install.set_main_executable(None);
             prod_install.set_execute_working_directory(None);
@@ -466,6 +499,18 @@ async fn remove_app<R: Runtime>(
         }
     }
     Err("Product not found!".to_string())
+}
+
+fn expand_env_vars(input: &str) -> String {
+    // Regular expression to match %VAR%
+    let re = regex::Regex::new(r"%([^%]+)%").unwrap();
+
+    // Replace each match with the corresponding environment variable value
+    re.replace_all(input, |caps: &regex::Captures| {
+        let var_name = &caps[1];
+        env::var(var_name).unwrap_or_else(|_| caps[0].to_string()) // Return the original if not found
+    })
+    .to_string()
 }
 
 #[tauri::command]
@@ -492,7 +537,8 @@ fn start_app<R: Runtime>(
     }
 
     if let Some(exec_path) = prod.main_executable() {
-        let canonical_path = fs::canonicalize(exec_path).map_err(|e| e.to_string())?;
+        let canonical_path =
+            fs::canonicalize(expand_env_vars(exec_path)).map_err(|e| e.to_string())?;
         tracing::debug!("Starting {canonical_path:?} with environment variables: {env_map:?}");
         Command::new(canonical_path)
             .current_dir(
