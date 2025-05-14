@@ -390,6 +390,25 @@ async fn install_app<R: Runtime>(
                         }
                     }
                 }
+                DownloadStrategy::Msi { product_code } => {
+                    // First, uninstall any current version
+                    std::process::Command::new("msiexec.exe")
+                        .arg("/x")
+                        .arg(product_code)
+                        .arg("/q")
+                        .output()
+                        .map_err(|e| format!("Failed to uninstall old versions: {e}"))?;
+
+                    // Next, install new version
+                    std::process::Command::new("msiexec.exe")
+                        .arg("/i")
+                        .arg(tempfile)
+                        .arg("/qr")
+                        .arg("ALLUSERS=2")
+                        .arg("MSIINSTALLPERUSER=1")
+                        .output()
+                        .map_err(|e| format!("Failed to install new version: {e}"))?;
+                }
                 DownloadStrategy::ZipFile => {
                     let reader = BufReader::new(
                         fs::File::open(&tempfile)
