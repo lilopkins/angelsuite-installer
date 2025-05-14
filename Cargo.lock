@@ -75,6 +75,7 @@ dependencies = [
  "dotenvy",
  "flate2",
  "getset",
+ "regex",
  "reqwest",
  "semver",
  "serde",
