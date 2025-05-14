@@ -121,9 +121,7 @@ pub enum DownloadStrategy {
         chmod: bool,
     },
     /// Download a Windows® Installer
-    Msi {
-        product_code: String,
-    },
+    Msi { product_code: String },
     /// Download a compressed ZIP file. This file should be unzipped in the target directory, flattening if needed
     ZipFile,
     /// Download a gzip compressed tarball file. This file should be uncompressed in the target directory, flattening if needed

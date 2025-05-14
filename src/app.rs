@@ -1,8 +1,6 @@
-use js_sys::Array;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::console;
 use yew::prelude::*;
 
 #[wasm_bindgen]
@@ -346,7 +344,8 @@ pub fn item(props: &ItemProps) -> Html {
                         kind: "warning",
                     })
                     .unwrap(),
-                ).await;
+                )
+                .await;
                 // SAFETY: confirm always returns bool
                 if response.as_bool().unwrap() {
                     cb.emit((Some("Removing...".to_string()), false));
