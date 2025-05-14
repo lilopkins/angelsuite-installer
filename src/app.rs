@@ -1,6 +1,8 @@
+use js_sys::Array;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
+use web_sys::console;
 use yew::prelude::*;
 
 #[wasm_bindgen]
@@ -13,7 +15,7 @@ extern "C" {
     fn dialog(s: &str, opts: JsValue);
 
     #[wasm_bindgen(js_namespace = ["window", "__TAURI_PLUGIN_DIALOG__"])]
-    fn confirm(s: &str, opts: JsValue) -> bool;
+    async fn confirm(s: &str, opts: JsValue) -> JsValue;
 }
 
 #[derive(Serialize)]
@@ -333,30 +335,37 @@ pub fn item(props: &ItemProps) -> Html {
         Callback::from(move |e: MouseEvent| {
             e.prevent_default();
 
-            if confirm(
-                &format!("Are you sure you want to remove {name}?"),
-                serde_wasm_bindgen::to_value(&DialogOptions {
-                    title: "Are you sure?",
-                    kind: "warning",
-                })
-                .unwrap(),
-            ) {
-                cb.emit((Some("Removing...".to_string()), false));
-
-                let id = id.clone();
-                let cb = cb.clone();
-                spawn_local(async move {
-                    let args = serde_wasm_bindgen::to_value(&StartInstallUpgradeRemoveArgs {
-                        id: (*id).clone(),
+            let id = id.clone();
+            let name = name.clone();
+            let cb = cb.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let response = confirm(
+                    &format!("Are you sure you want to remove {name}?"),
+                    serde_wasm_bindgen::to_value(&DialogOptions {
+                        title: "Are you sure?",
+                        kind: "warning",
                     })
-                    .unwrap();
+                    .unwrap(),
+                ).await;
+                // SAFETY: confirm always returns bool
+                if response.as_bool().unwrap() {
+                    cb.emit((Some("Removing...".to_string()), false));
 
-                    // rationale: doesn't fail
-                    invoke("remove_app", args).await.unwrap();
+                    let id = id.clone();
+                    let cb = cb.clone();
+                    spawn_local(async move {
+                        let args = serde_wasm_bindgen::to_value(&StartInstallUpgradeRemoveArgs {
+                            id: (*id).clone(),
+                        })
+                        .unwrap();
 
-                    cb.emit((None, true));
-                });
-            }
+                        // SAFETY: this exists
+                        invoke("remove_app", args).await.unwrap();
+
+                        cb.emit((None, true));
+                    });
+                }
+            });
         })
     };
 
@@ -380,7 +389,7 @@ pub fn item(props: &ItemProps) -> Html {
                     allow_prerelease: *allow_prereleases,
                 })
                 .unwrap();
-                // rationale: Doesn't fail
+                // SAFETY: function exists
                 invoke("set_prerelease", args).await.unwrap();
             });
         });
