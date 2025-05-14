@@ -69,12 +69,13 @@ dependencies = [
 
 [[package]]
 name = "angelsuite-installer"
-version = "0.8.0-1"
+version = "0.8.0-2"
 dependencies = [
  "dirs",
  "dotenvy",
  "flate2",
  "getset",
+ "regex",
  "reqwest",
  "semver",
  "serde",
@@ -94,7 +95,7 @@ dependencies = [
 
 [[package]]
 name = "angelsuite-installer-ui"
-version = "0.8.0-1"
+version = "0.8.0-2"
 dependencies = [
  "console_error_panic_hook",
  "js-sys",
