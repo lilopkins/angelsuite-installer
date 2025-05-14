@@ -106,8 +106,10 @@ pub struct DownloadSpec {
     url: String,
     /// The download/install strategy
     strategy: DownloadStrategy,
-    /// The path to the executable to start this product, if it can be started.
+    /// The relative path to the executable to start this product, if it can be started.
     executable: Option<String>,
+    /// The absolute path to the executable to start this product, if it can be started.
+    executable_absolute: Option<String>,
 }
 
 /// The possible download and install strategies

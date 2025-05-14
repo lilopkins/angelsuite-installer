@@ -249,6 +249,18 @@ fn set_prerelease<R: Runtime>(
     Ok(())
 }
 
+fn expand_env_vars(input: &str) -> String {
+    // Regular expression to match %VAR%
+    let re = regex::Regex::new(r"%([^%]+)%").unwrap();
+
+    // Replace each match with the corresponding environment variable value
+    re.replace_all(input, |caps: &regex::Captures| {
+        let var_name = &caps[1];
+        env::var(var_name).unwrap_or_else(|_| caps[0].to_string()) // Return the original if not found
+    })
+    .to_string()
+}
+
 #[tauri::command]
 async fn install_app<R: Runtime>(
     _app: tauri::AppHandle<R>,
@@ -439,6 +451,12 @@ async fn install_app<R: Runtime>(
                     install_directory.to_string_lossy().to_string(),
                 ));
             }
+            if let Some(exec) = download.executable_absolute() {
+                prod_install.set_main_executable(Some(expand_env_vars(exec)));
+                prod_install.set_execute_working_directory(Some(
+                    install_directory.to_string_lossy().to_string(),
+                ));
+            }
             install
                 .save()
                 .expect("failed to update installer.json after uninstalling");
@@ -501,18 +519,6 @@ async fn remove_app<R: Runtime>(
     Err("Product not found!".to_string())
 }
 
-fn expand_env_vars(input: &str) -> String {
-    // Regular expression to match %VAR%
-    let re = regex::Regex::new(r"%([^%]+)%").unwrap();
-
-    // Replace each match with the corresponding environment variable value
-    re.replace_all(input, |caps: &regex::Captures| {
-        let var_name = &caps[1];
-        env::var(var_name).unwrap_or_else(|_| caps[0].to_string()) // Return the original if not found
-    })
-    .to_string()
-}
-
 #[tauri::command]
 fn start_app<R: Runtime>(
     _app: tauri::AppHandle<R>,
@@ -537,8 +543,7 @@ fn start_app<R: Runtime>(
     }
 
     if let Some(exec_path) = prod.main_executable() {
-        let canonical_path =
-            fs::canonicalize(expand_env_vars(exec_path)).map_err(|e| e.to_string())?;
+        let canonical_path = fs::canonicalize(exec_path).map_err(|e| e.to_string())?;
         tracing::debug!("Starting {canonical_path:?} with environment variables: {env_map:?}");
         Command::new(canonical_path)
             .current_dir(
